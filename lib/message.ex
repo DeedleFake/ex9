@@ -3,82 +3,68 @@ defmodule Ex9.Message do
   A single 9P message and related functionality.
   """
 
-  defmodule Type do
-    @moduledoc """
-    Functions for dealing with message type data.
-    """
-
-    def from_id(100), do: {:t, :version}
-    def from_id(101), do: {:r, :version}
-    def from_id(102), do: {:t, :auth}
-    def from_id(103), do: {:r, :auth}
-    def from_id(104), do: {:t, :attach}
-    def from_id(105), do: {:r, :attach}
-    def from_id(107), do: {:r, :error}
-    def from_id(108), do: {:t, :flush}
-    def from_id(109), do: {:r, :flush}
-    def from_id(110), do: {:t, :walk}
-    def from_id(111), do: {:r, :walk}
-    def from_id(112), do: {:t, :open}
-    def from_id(113), do: {:r, :open}
-    def from_id(114), do: {:t, :create}
-    def from_id(115), do: {:r, :create}
-    def from_id(116), do: {:t, :read}
-    def from_id(117), do: {:r, :read}
-    def from_id(118), do: {:t, :write}
-    def from_id(119), do: {:r, :write}
-    def from_id(120), do: {:t, :clunk}
-    def from_id(121), do: {:r, :clunk}
-    def from_id(122), do: {:t, :remove}
-    def from_id(123), do: {:r, :remove}
-    def from_id(124), do: {:t, :stat}
-    def from_id(125), do: {:r, :stat}
-    def from_id(126), do: {:t, :wstat}
-    def from_id(127), do: {:r, :wstat}
-
-    def to_id({:t, :version}), do: 100
-    def to_id({:r, :version}), do: 101
-    def to_id({:t, :auth}), do: 102
-    def to_id({:r, :auth}), do: 103
-    def to_id({:t, :attach}), do: 104
-    def to_id({:r, :attach}), do: 105
-    def to_id({:r, :error}), do: 107
-    def to_id({:t, :flush}), do: 108
-    def to_id({:r, :flush}), do: 109
-    def to_id({:t, :walk}), do: 110
-    def to_id({:r, :walk}), do: 111
-    def to_id({:t, :open}), do: 112
-    def to_id({:r, :open}), do: 113
-    def to_id({:t, :create}), do: 114
-    def to_id({:r, :create}), do: 115
-    def to_id({:t, :read}), do: 116
-    def to_id({:r, :read}), do: 117
-    def to_id({:t, :write}), do: 118
-    def to_id({:r, :write}), do: 119
-    def to_id({:t, :clunk}), do: 120
-    def to_id({:r, :clunk}), do: 121
-    def to_id({:t, :remove}), do: 122
-    def to_id({:r, :remove}), do: 123
-    def to_id({:t, :stat}), do: 124
-    def to_id({:r, :stat}), do: 125
-    def to_id({:t, :wstat}), do: 126
-    def to_id({:r, :wstat}), do: 127
-  end
-
   defstruct type: nil, tag: nil, data: nil
 
-  def parse(<<size::4*8-little, type::8, tag::2*8-little, rest::binary>>) do
-    type = Type.from_id(type)
+  def parse(<<size::4*8-little, type::8, tag::2*8-little, rest::binary>>, proto \\ Ex9.Proto) do
+    type = proto.type_from_id(type)
     datasize = size - 4 - 1 - 2
     <<data::binary-(^datasize * 8), rest::binary>> = rest
-    {%__MODULE__{type: type, tag: tag, data: parse_data(datasize, type, data)}, rest}
+    {%__MODULE__{type: type, tag: tag, data: proto.parse_data(datasize, type, data)}, rest}
   end
 
-  defp parse_data(size, {:t, :version}, <<msize::4*8-little, rest::binary>>)
-       when byte_size(rest) == size - 4,
-       do: %{msize: msize, version: rest}
+  defmodule Proto do
+    @moduledoc """
+    Module with helper macros for defining protocols.
 
-  defp parse_data(size, {:r, :version}, <<msize::4*8-little, rest::binary>>)
-       when byte_size(rest) == size - 4,
-       do: %{msize: msize, version: rest}
+    ## Example
+
+    This example defines a protocol module with one type. The type is
+    a `:t`, meaning that it is a client-to-server message, has a type
+    of `:example`, and a wire ID of 100. The data of the type is
+    parsed with a pattern match of `<<data::4*8>>`, and that info is
+    then available in the `do` block. The return from the `do` block
+    will be inserted into the resulting `Ex9.Message`'s `data` field.
+
+        defmodule ExampleProto do
+            use Ex9.Message.Proto
+
+            type :t, :example, 100, <<data::4*8>> do
+              %{data: data}
+            end
+        end
+    """
+
+    defmacro __using__(_opts) do
+      quote do
+        import unquote(__MODULE__)
+      end
+    end
+
+    @doc """
+    A shortcut to define a type with no body. A type defined like this
+    will always ignore its data and return `nil`.
+    """
+    defmacro type(dir, type, id) do
+      quote do
+        type(unquote(dir), unquote(type), unquote(id), _, do: nil)
+      end
+    end
+
+    @doc """
+    Defines a message type with the given dir, type, and wire ID. For
+    more info, see the module documentation.
+    """
+    defmacro type(dir, type, id, data, do: block)
+             when dir in [:t, :r]
+             when is_atom(type)
+             when is_integer(id) do
+      dt = {dir, type}
+
+      quote do
+        def type_from_id(unquote(id)), do: unquote(dt)
+        def type_to_id(unquote(dt)), do: unquote(id)
+        def parse_data(size, unquote(dt), unquote(data)), do: unquote(block)
+      end
+    end
+  end
 end
