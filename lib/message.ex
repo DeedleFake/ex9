@@ -69,10 +69,16 @@ defmodule Ex9.Message do
 
   def parse(<<size::4*8-little, type::8, tag::2*8-little, rest::binary>>) do
     type = Type.from_id(type)
-    msgsize = size - 4 - 1 - 2
-    <<msg::binary-(^msgsize * 8), rest::binary>> = rest
-    {%__MODULE__{type: type, tag: tag, data: parse_data(size, type, msg)}, rest}
+    datasize = size - 4 - 1 - 2
+    <<data::binary-(^datasize * 8), rest::binary>> = rest
+    {%__MODULE__{type: type, tag: tag, data: parse_data(datasize, type, data)}, rest}
   end
 
-  defp parse_data(size, type, data), do: nil
+  defp parse_data(size, {:t, :version}, <<msize::4*8-little, rest::binary>>)
+       when byte_size(rest) == size - 4,
+       do: %{msize: msize, version: rest}
+
+  defp parse_data(size, {:r, :version}, <<msize::4*8-little, rest::binary>>)
+       when byte_size(rest) == size - 4,
+       do: %{msize: msize, version: rest}
 end
