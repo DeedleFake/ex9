@@ -5,7 +5,7 @@ defmodule Ex9.Message do
 
   defstruct type: nil, tag: nil, data: nil
 
-  def parse(<<size::4*8-little, type::8, tag::2*8-little, rest::binary>>, opts \\ []) do
+  def parse(size, <<type::8, tag::2*8-little, rest::binary>>, opts \\ []) do
     proto = opts |> Keyword.get(:proto, Ex9.Proto)
 
     type = proto.type_from_id(type)
