@@ -4,17 +4,28 @@ defmodule Ex9.Proto do
   """
 
   use Ex9.Message.Proto
+  alias Ex9.Proto.QID
 
-  type 100, tversion(<<msize::4*8-little, version_s::2*8-little, version::binary>>) do
-    %{msize: msize, version: binary_part(version, 0, version_s)}
+  type 100, tversion(<<msize::4*8-little, rest::binary>>) do
+    {version, _} = parse_string(rest)
+    %{msize: msize, version: version}
   end
 
-  type 101, rversion(<<msize::4*8-little, version_s::2*8-little, version::binary>>) do
-    %{msize: msize, version: binary_part(version, 0, version_s)}
+  type 101, rversion(<<msize::4*8-little, rest::binary>>) do
+    {version, _} = parse_string(rest)
+    %{msize: msize, version: version}
   end
 
-  type(102, tauth)
-  type(103, rauth)
+  type 102, tauth(<<afid::8*4-little, rest::binary>>) do
+    {uname, rest} = parse_string(rest)
+    {aname, _} = parse_string(rest)
+    %{afid: afid, uname: uname, aname: aname}
+  end
+
+  type 103, rauth(<<data::binary-(13 * 8)>>) do
+    %{aqid: QID.parse(data)}
+  end
+
   type(104, tattach)
   type(105, rattach)
   type(107, rerror)

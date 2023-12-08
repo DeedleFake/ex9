@@ -69,5 +69,14 @@ defmodule Ex9.Message do
         type(unquote(id), unquote(type)(_), do: nil)
       end
     end
+
+    @doc """
+    A convenience function to parse a 9P string. It returns a
+    `{parsed_string, rest}` tuple.
+    """
+    def parse_string(<<size::2*8-little, rest::binary>>) when byte_size(rest) >= size do
+      <<str::binary-(^size * 8), rest::binary>> = rest
+      {str, rest}
+    end
   end
 end
