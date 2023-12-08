@@ -38,4 +38,14 @@ defmodule Ex9.Proto do
   type(125, rstat)
   type(126, twstat)
   type(127, rwstat)
+
+  defmodule QID do
+    defstruct type: nil, version: nil, path: nil
+
+    def parse(<<type::8, version::8*4-little, path::8*8-little>>),
+      do: %__MODULE__{type: type, version: version, path: path}
+
+    def to_binary(%{type: type, version: version, path: path}),
+      do: <<type::8, version::8*4-little, path::8*8-little>>
+  end
 end
