@@ -5,37 +5,37 @@ defmodule Ex9.Proto do
 
   use Ex9.Message.Proto
 
-  type :t, :version, 100, <<msize::4*8-little, rest_s::2*8-little, rest::binary>> do
-    %{msize: msize, version: binary_part(rest, 0, rest_s)}
+  type 100, tversion(<<msize::4*8-little, version_s::2*8-little, version::binary>>) do
+    %{msize: msize, version: binary_part(version, 0, version_s)}
   end
 
-  type :r, :version, 101, <<msize::4*8-little, rest_s::2*8-little, rest::binary>> do
-    %{msize: msize, version: binary_part(rest, 0, rest_s)}
+  type 101, rversion(<<msize::4*8-little, version_s::2*8-little, version::binary>>) do
+    %{msize: msize, version: binary_part(version, 0, version_s)}
   end
 
-  type(:t, :auth, 102)
-  type(:r, :auth, 103)
-  type(:t, :attach, 104)
-  type(:r, :attach, 105)
-  type(:r, :error, 107)
-  type(:t, :flush, 108)
-  type(:r, :flush, 109)
-  type(:t, :walk, 110)
-  type(:r, :walk, 111)
-  type(:t, :open, 112)
-  type(:r, :open, 113)
-  type(:t, :create, 114)
-  type(:r, :create, 115)
-  type(:t, :read, 116)
-  type(:r, :read, 117)
-  type(:t, :write, 118)
-  type(:r, :write, 119)
-  type(:t, :clunk, 120)
-  type(:r, :clunk, 121)
-  type(:t, :remove, 122)
-  type(:r, :remove, 123)
-  type(:t, :stat, 124)
-  type(:r, :stat, 125)
-  type(:t, :wstat, 126)
-  type(:r, :wstat, 127)
+  type(102, tauth)
+  type(103, rauth)
+  type(104, tattach)
+  type(105, rattach)
+  type(107, rerror)
+  type(108, tflush)
+  type(109, rflush)
+  type(110, twalk)
+  type(111, rwalk)
+  type(112, topen)
+  type(113, ropen)
+  type(114, tcreate)
+  type(115, rcreate)
+  type(116, tread)
+  type(117, rread)
+  type(118, twrite)
+  type(119, rwrite)
+  type(120, tclunk)
+  type(121, rclunk)
+  type(122, tremove)
+  type(123, rremove)
+  type(124, tstat)
+  type(125, rstat)
+  type(126, twstat)
+  type(127, rwstat)
 end

@@ -28,10 +28,13 @@ defmodule Ex9.Message do
         defmodule ExampleProto do
             use Ex9.Message.Proto
 
-            type :t, :example, 100, <<data::4*8>> do
+            type 100, texample(<<data::8*4>>) do
               %{data: data}
             end
         end
+
+    The message's direction, :t, or :r, is the first letter of the
+    name. It must be either "t" or "r".
     """
 
     defmacro __using__(_opts) do
@@ -41,29 +44,29 @@ defmodule Ex9.Message do
     end
 
     @doc """
-    A shortcut to define a type with no body. A type defined like this
-    will always ignore its data and return `nil`.
-    """
-    defmacro type(dir, type, id) do
-      quote do
-        type(unquote(dir), unquote(type), unquote(id), _, do: nil)
-      end
-    end
-
-    @doc """
     Defines a message type with the given dir, type, and wire ID. For
     more info, see the module documentation.
     """
-    defmacro type(dir, type, id, data, do: block)
-             when dir in [:t, :r]
-             when is_atom(type)
+    defmacro type(id, {name, _, [data]}, do: block)
              when is_integer(id) do
-      dt = {dir, type}
+      <<dir::binary-1, type::binary>> = Atom.to_string(name)
+      unless dir in ["t", "r"], do: raise(ArgumentError, "direction not :t or :r")
+      dt = {dir |> String.to_atom(), type |> String.to_atom()}
 
       quote do
         def type_from_id(unquote(id)), do: unquote(dt)
         def type_to_id(unquote(dt)), do: unquote(id)
         def parse_data(size, unquote(dt), unquote(data)), do: unquote(block)
+      end
+    end
+
+    @doc """
+    A shortcut to define a type with no body. A type defined like this
+    will always ignore its data and return `nil`.
+    """
+    defmacro type(id, {type, _, _}) do
+      quote do
+        type(unquote(id), unquote(type)(_), do: nil)
       end
     end
   end
