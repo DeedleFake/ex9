@@ -5,11 +5,22 @@ defmodule Ex9.Message do
 
   defstruct type: nil, tag: nil, data: nil
 
-  def parse(<<size::4*8-little, type::8, tag::2*8-little, rest::binary>>, proto \\ Ex9.Proto) do
+  def parse(<<size::4*8-little, type::8, tag::2*8-little, rest::binary>>, opts \\ []) do
+    proto = opts |> Keyword.get(:proto, Ex9.Proto)
+
     type = proto.type_from_id(type)
     datasize = size - 4 - 1 - 2
     <<data::binary-(^datasize * 8), rest::binary>> = rest
     {%__MODULE__{type: type, tag: tag, data: proto.parse_data(datasize, type, data)}, rest}
+  end
+
+  def to_binary(%{type: type, tag: tag, data: data}, tag, opts \\ []) do
+    proto = opts |> Keyword.get(:proto, Ex9.Proto)
+
+    type = proto.id_from_type(type)
+    data = proto.data_to_binary(data)
+    size = 4 + 1 + 2 + byte_size(data)
+    <<size::4*8-little, type::8, tag::2*8-little, data>>
   end
 
   defmodule Proto do
@@ -49,9 +60,7 @@ defmodule Ex9.Message do
     """
     defmacro type(id, {name, _, [data]}, do: block)
              when is_integer(id) do
-      <<dir::binary-1, type::binary>> = Atom.to_string(name)
-      unless dir in ["t", "r"], do: raise(ArgumentError, "direction not :t or :r")
-      dt = {dir |> String.to_atom(), type |> String.to_atom()}
+      dt = split_name(name)
 
       quote do
         def type_from_id(unquote(id)), do: unquote(dt)
@@ -60,13 +69,23 @@ defmodule Ex9.Message do
       end
     end
 
+    defmacro to_binary({name, _, [data]}, do: block) do
+      dt = split_name(name)
+
+      quote do
+        def data_to_binary(unquote(dt), unquote(data)), do: unquote(block)
+      end
+    end
+
     @doc """
     A shortcut to define a type with no body. A type defined like this
-    will always ignore its data and return `nil`.
+    will always ignore its data and return `nil`. It also defines an
+    equivalently nil `to_binary` definition.
     """
     defmacro type(id, {type, _, _}) do
       quote do
         type(unquote(id), unquote(type)(_), do: nil)
+        to_binary(unquote(type)(_), do: nil)
       end
     end
 
@@ -77,6 +96,16 @@ defmodule Ex9.Message do
     def parse_string(<<size::2*8-little, rest::binary>>) when byte_size(rest) >= size do
       <<str::binary-(^size * 8), rest::binary>> = rest
       {str, rest}
+    end
+
+    def string_to_binary(str) when is_binary(str) do
+      <<byte_size(str)::8*2-little, str::binary>>
+    end
+
+    defp split_name(name) do
+      <<dir::binary-1, type::binary>> = Atom.to_string(name)
+      unless dir in ["t", "r"], do: raise(ArgumentError, "direction not :t or :r")
+      {dir |> String.to_atom(), type |> String.to_atom()}
     end
   end
 end

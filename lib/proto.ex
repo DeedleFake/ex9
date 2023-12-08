@@ -11,6 +11,10 @@ defmodule Ex9.Proto do
     %{msize: msize, version: version}
   end
 
+  to_binary tversion(%{msize: msize, version: version}) do
+    <<msize::4*8-little, string_to_binary(version)>>
+  end
+
   type 101, rversion(<<msize::4*8-little, rest::binary>>) do
     {version, _} = parse_string(rest)
     %{msize: msize, version: version}
