@@ -28,6 +28,9 @@ defmodule Ex9P.Proto do
     data(<<msize::4*8-little, rest::binary>>) ->
       {version, _} = parse_bytes(rest)
       %{msize: msize, version: version}
+
+    binary(%{msize: msize, version: version}) ->
+      <<msize::4*8-little, to_bytes(version)::binary>>
   end
 
   message 102, tauth do
@@ -35,11 +38,17 @@ defmodule Ex9P.Proto do
       {uname, rest} = parse_bytes(rest)
       {aname, _} = parse_bytes(rest)
       %{afid: afid, uname: uname, aname: aname}
+
+    binary(%{afid: afid, uname: uname, aname: aname}) ->
+      <<afid::8*4-little, to_bytes(uname)::binary, to_bytes(aname)::binary>>
   end
 
   message 103, rauth do
     data(<<data::binary-(13 * 8)>>) ->
       %{aqid: QID.parse(data)}
+
+    binary(%{aqid: aqid}) ->
+      QID.to_binary(aqid)
   end
 
   message(104, tattach)
