@@ -1,9 +1,9 @@
-defmodule Ex9.MixProject do
+defmodule Ex9P.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :ex9,
+      app: :ex9p,
       version: "0.1.0",
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,

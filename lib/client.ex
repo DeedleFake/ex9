@@ -1,4 +1,4 @@
-defmodule Ex9.Client do
+defmodule Ex9P.Client do
   use GenServer
 
   defmodule Listener do

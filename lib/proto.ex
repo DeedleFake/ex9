@@ -1,10 +1,10 @@
-defmodule Ex9.Proto do
+defmodule Ex9P.Proto do
   @moduledoc """
   Protocol definition of standard 9P messages.
   """
 
-  use Ex9.Message.Proto
-  alias Ex9.Proto.QID
+  use Ex9P.Message.Proto
+  alias Ex9P.Proto.QID
 
   type 100, tversion(<<msize::4*8-little, rest::binary>>) do
     {version, _} = parse_string(rest)

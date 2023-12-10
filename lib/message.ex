@@ -1,4 +1,4 @@
-defmodule Ex9.Message do
+defmodule Ex9P.Message do
   @moduledoc """
   A single 9P message and related functionality.
   """
@@ -6,7 +6,7 @@ defmodule Ex9.Message do
   defstruct type: nil, tag: nil, data: nil
 
   def parse(size, <<type::8, tag::2*8-little, rest::binary>>, opts \\ []) do
-    proto = opts |> Keyword.get(:proto, Ex9.Proto)
+    proto = opts |> Keyword.get(:proto, Ex9P.Proto)
 
     type = proto.type_from_id(type)
     datasize = size - 4 - 1 - 2
@@ -15,7 +15,7 @@ defmodule Ex9.Message do
   end
 
   def to_binary(%{type: type, tag: tag, data: data}, tag, opts \\ []) do
-    proto = opts |> Keyword.get(:proto, Ex9.Proto)
+    proto = opts |> Keyword.get(:proto, Ex9P.Proto)
 
     type = proto.id_from_type(type)
     data = proto.data_to_binary(data)
@@ -34,10 +34,10 @@ defmodule Ex9.Message do
     of `:example`, and a wire ID of 100. The data of the type is
     parsed with a pattern match of `<<data::4*8>>`, and that info is
     then available in the `do` block. The return from the `do` block
-    will be inserted into the resulting `Ex9.Message`'s `data` field.
+    will be inserted into the resulting `Ex9P.Message`'s `data` field.
 
         defmodule ExampleProto do
-            use Ex9.Message.Proto
+            use Ex9P.Message.Proto
 
             type 100, texample(<<data::8*4>>) do
               %{data: data}
