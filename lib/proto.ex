@@ -4,55 +4,6 @@ defmodule Ex9P.Proto do
   """
 
   use Ex9P.Message.Proto
-  alias Ex9P.Proto.QID
-
-  type 100, tversion(<<msize::4*8-little, rest::binary>>) do
-    {version, _} = parse_string(rest)
-    %{msize: msize, version: version}
-  end
-
-  to_binary tversion(%{msize: msize, version: version}) do
-    <<msize::4*8-little, string_to_binary(version)>>
-  end
-
-  type 101, rversion(<<msize::4*8-little, rest::binary>>) do
-    {version, _} = parse_string(rest)
-    %{msize: msize, version: version}
-  end
-
-  type 102, tauth(<<afid::8*4-little, rest::binary>>) do
-    {uname, rest} = parse_string(rest)
-    {aname, _} = parse_string(rest)
-    %{afid: afid, uname: uname, aname: aname}
-  end
-
-  type 103, rauth(<<data::binary-(13 * 8)>>) do
-    %{aqid: QID.parse(data)}
-  end
-
-  type(104, tattach)
-  type(105, rattach)
-  type(107, rerror)
-  type(108, tflush)
-  type(109, rflush)
-  type(110, twalk)
-  type(111, rwalk)
-  type(112, topen)
-  type(113, ropen)
-  type(114, tcreate)
-  type(115, rcreate)
-  type(116, tread)
-  type(117, rread)
-  type(118, twrite)
-  type(119, rwrite)
-  type(120, tclunk)
-  type(121, rclunk)
-  type(122, tremove)
-  type(123, rremove)
-  type(124, tstat)
-  type(125, rstat)
-  type(126, twstat)
-  type(127, rwstat)
 
   defmodule QID do
     defstruct type: nil, version: nil, path: nil
@@ -63,4 +14,55 @@ defmodule Ex9P.Proto do
     def to_binary(%{type: type, version: version, path: path}),
       do: <<type::8, version::8*4-little, path::8*8-little>>
   end
+
+  message 100, tversion do
+    data(<<msize::4*8-little, rest::binary>>) ->
+      {version, _} = parse_bytes(rest)
+      %{msize: msize, version: version}
+
+    binary(%{msize: msize, version: version}) ->
+      <<msize::4*8-little, to_bytes(version)::binary>>
+  end
+
+  message 101, rversion do
+    data(<<msize::4*8-little, rest::binary>>) ->
+      {version, _} = parse_bytes(rest)
+      %{msize: msize, version: version}
+  end
+
+  message 102, tauth do
+    data(<<afid::8*4-little, rest::binary>>) ->
+      {uname, rest} = parse_bytes(rest)
+      {aname, _} = parse_bytes(rest)
+      %{afid: afid, uname: uname, aname: aname}
+  end
+
+  message 103, rauth do
+    data(<<data::binary-(13 * 8)>>) ->
+      %{aqid: QID.parse(data)}
+  end
+
+  message(104, tattach)
+  message(105, rattach)
+  message(107, rerror)
+  message(108, tflush)
+  message(109, rflush)
+  message(110, twalk)
+  message(111, rwalk)
+  message(112, topen)
+  message(113, ropen)
+  message(114, tcreate)
+  message(115, rcreate)
+  message(116, tread)
+  message(117, rread)
+  message(118, twrite)
+  message(119, rwrite)
+  message(120, tclunk)
+  message(121, rclunk)
+  message(122, tremove)
+  message(123, rremove)
+  message(124, tstat)
+  message(125, rstat)
+  message(126, twstat)
+  message(127, rwstat)
 end

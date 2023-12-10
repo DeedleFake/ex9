@@ -5,22 +5,23 @@ defmodule Ex9P.Message do
 
   defstruct type: nil, tag: nil, data: nil
 
-  def parse(size, <<type::8, tag::2*8-little, rest::binary>>, opts \\ []) do
-    proto = opts |> Keyword.get(:proto, Ex9P.Proto)
+  def parse(size, <<id::8, tag::2*8-little, rest::binary>>, opts \\ []) do
+    [proto: proto] = Keyword.validate!(opts, proto: Ex9P.Proto)
 
-    type = proto.type_from_id(type)
     datasize = size - 4 - 1 - 2
     <<data::binary-(^datasize * 8), rest::binary>> = rest
-    {%__MODULE__{type: type, tag: tag, data: proto.parse_data(datasize, type, data)}, rest}
+    type = proto.id_to_type(id)
+    msgdata = proto.binary_to_data(type, data)
+    {%__MODULE__{type: type, tag: tag, data: msgdata}, rest}
   end
 
-  def to_binary(%{type: type, tag: tag, data: data}, tag, opts \\ []) do
-    proto = opts |> Keyword.get(:proto, Ex9P.Proto)
+  def to_binary(%{type: type, tag: tag, data: data}, opts \\ []) do
+    [proto: proto] = Keyword.validate!(opts, proto: Ex9P.Proto)
 
-    type = proto.id_from_type(type)
-    data = proto.data_to_binary(data)
-    size = 4 + 1 + 2 + byte_size(data)
-    <<size::4*8-little, type::8, tag::2*8-little, data>>
+    id = proto.type_to_id(type)
+    msgdata = proto.data_to_binary(type, data)
+    size = 4 + 1 + 2 + byte_size(msgdata)
+    <<size::4*8-little, id::8, tag::2*8-little, msgdata::binary>>
   end
 
   defmodule Proto do
@@ -31,16 +32,18 @@ defmodule Ex9P.Message do
 
     This example defines a protocol module with one type. The type is
     a `:t`, meaning that it is a client-to-server message, has a type
-    of `:example`, and a wire ID of 100. The data of the type is
-    parsed with a pattern match of `<<data::4*8>>`, and that info is
-    then available in the `do` block. The return from the `do` block
-    will be inserted into the resulting `Ex9P.Message`'s `data` field.
+    of `:example`, and a wire ID of 100. The block defines the
+    mechanisms for converting from the binary wire format to the
+    resulting Message's data field and vice versa.
 
         defmodule ExampleProto do
             use Ex9P.Message.Proto
 
-            type 100, texample(<<data::8*4>>) do
-              %{data: data}
+            type 100, texample do
+              data(<<data::8*4>>) ->
+                %{data: data}
+              binary(%{data: data}) ->
+                <<data::8*4>>
             end
         end
 
@@ -55,57 +58,67 @@ defmodule Ex9P.Message do
     end
 
     @doc """
-    Defines a message type with the given dir, type, and wire ID. For
-    more info, see the module documentation.
+    Defines a message type with the given ID and type. For more info,
+    see the module documentation.
     """
-    defmacro type(id, {name, _, [data]}, do: block)
-             when is_integer(id) do
-      dt = split_name(name)
+    defmacro message(id, {type, _, _}, do: block) do
+      type = extract_dir(type)
+
+      f =
+        unless block == nil,
+          do:
+            {:__block__, [],
+             block
+             |> Enum.map(fn
+               {:->, _, [[{:data, _, [binary]} | _], block]} ->
+                 quote do
+                   def binary_to_data(unquote(type), unquote(binary)), do: unquote(block)
+                 end
+
+               {:->, _, [[{:binary, _, [data]} | _], block]} ->
+                 quote do
+                   def data_to_binary(unquote(type), unquote(data)), do: unquote(block)
+                 end
+             end)}
 
       quote do
-        def type_from_id(unquote(id)), do: unquote(dt)
-        def type_to_id(unquote(dt)), do: unquote(id)
-        def parse_data(size, unquote(dt), unquote(data)), do: unquote(block)
-      end
-    end
-
-    defmacro to_binary({name, _, [data]}, do: block) do
-      dt = split_name(name)
-
-      quote do
-        def data_to_binary(unquote(dt), unquote(data)), do: unquote(block)
+        unquote(f)
+        def id_to_type(unquote(id)), do: unquote(type)
+        def type_to_id(unquote(type)), do: unquote(id)
       end
     end
 
     @doc """
     A shortcut to define a type with no body. A type defined like this
-    will always ignore its data and return `nil`. It also defines an
-    equivalently nil `to_binary` definition.
+    will always ignore its data and return `nil`.
     """
-    defmacro type(id, {type, _, _}) do
+    defmacro message(id, type) do
       quote do
-        type(unquote(id), unquote(type)(_), do: nil)
-        to_binary(unquote(type)(_), do: nil)
+        message(unquote(id), unquote(type), do: nil)
       end
     end
 
     @doc """
-    A convenience function to parse a 9P string. It returns a
-    `{parsed_string, rest}` tuple.
+    A convenience function to parse a variable-sized 9P field. It
+    returns a `{bytes, rest}` tuple.
     """
-    def parse_string(<<size::2*8-little, rest::binary>>) when byte_size(rest) >= size do
+    def parse_bytes(<<size::2*8-little, rest::binary>>) when byte_size(rest) >= size do
       <<str::binary-(^size * 8), rest::binary>> = rest
       {str, rest}
     end
 
-    def string_to_binary(str) when is_binary(str) do
+    @doc """
+    The opposite of parse_string/1. Converts a binary into 9P-encoded
+    variable-length field.
+    """
+    def to_bytes(str) when is_binary(str) do
       <<byte_size(str)::8*2-little, str::binary>>
     end
 
-    defp split_name(name) do
-      <<dir::binary-1, type::binary>> = Atom.to_string(name)
-      unless dir in ["t", "r"], do: raise(ArgumentError, "direction not :t or :r")
-      {dir |> String.to_atom(), type |> String.to_atom()}
+    defp extract_dir(type) do
+      <<dir::binary-1, type::binary>> = Atom.to_string(type)
+      unless dir in ["t", "r"], do: raise(ArgumentError, "direction in :t or :r")
+      {String.to_atom(dir), String.to_atom(type)}
     end
   end
 end
