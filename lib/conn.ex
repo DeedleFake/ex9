@@ -1,7 +1,7 @@
 defmodule Ex9P.Conn do
   use GenServer
 
-  alias Ex9P.Message
+  import Ex9P.Proto
 
   def connect(address, port, opts \\ [])
 
@@ -32,7 +32,7 @@ defmodule Ex9P.Conn do
 
   @impl true
   def handle_continue({:send, msg}, state) do
-    data = Message.serialize(msg, state.opts)
+    data = serialize_message(msg, state.opts)
     :ok = :gen_tcp.send(state.socket, data)
     {:noreply, state}
   end
@@ -45,7 +45,7 @@ defmodule Ex9P.Conn do
 
   @impl true
   def handle_info({:tcp, socket, data}, %{socket: socket} = state) do
-    {msg, ""} = Message.deserialize(data, state.opts)
+    {msg, ""} = deserialize_message(data, state.opts)
     Kernel.send(state.control, {Ex9P, self(), msg})
     {:noreply, state}
   end
