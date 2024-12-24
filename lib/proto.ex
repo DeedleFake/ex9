@@ -44,6 +44,36 @@ defmodule Ex9P.Proto do
     defstruct @enforce_keys
   end
 
+  defmodule Tattach do
+    @enforce_keys [:fid, :afid, :uname, :aname]
+    defstruct @enforce_keys
+  end
+
+  # Tattach 104
+  # Rattach 105
+  # Tflush  108
+  # Rflush  109
+  # Twalk   110
+  # Rwalk   111
+  # Topen   112
+  # Ropen   113
+  # Tcreate 114
+  # Rcreate 115
+  # Tread   116
+  # Rread   117
+  # Twrite  118
+  # Rwrite  119
+  # Tclunk  120
+  # Rclunk  121
+  # Tremove 122
+  # Rremove 123
+  # Tstat   124
+  # Rstat   125
+  # Twstat  126
+  # Rwstat  127
+  # Topenfd 98
+  # Ropenfd 99
+
   @impl true
   def deserialize(100, <<msize::4*8-little, rest::binary>>) do
     {version, ""} = deserialize_binary(rest)
@@ -76,6 +106,13 @@ defmodule Ex9P.Proto do
   end
 
   @impl true
+  def deserialize(104, <<fid::4*8-little, afid::4*8-little, rest::binary>>) do
+    {uname, rest} = deserialize_binary(rest)
+    {aname, ""} = deserialize_binary(rest)
+    %Tattach{fid: fid, afid: afid, uname: uname, aname: aname}
+  end
+
+  @impl true
   def serialize(%Tversion{msize: msize, version: version}) do
     data = <<msize::4*8-little, serialize_binary(version)::binary>>
     {100, data}
@@ -105,28 +142,9 @@ defmodule Ex9P.Proto do
     {107, data}
   end
 
-  # Tattach 104
-  # Rattach 105
-  # Tflush  108
-  # Rflush  109
-  # Twalk   110
-  # Rwalk   111
-  # Topen   112
-  # Ropen   113
-  # Tcreate 114
-  # Rcreate 115
-  # Tread   116
-  # Rread   117
-  # Twrite  118
-  # Rwrite  119
-  # Tclunk  120
-  # Rclunk  121
-  # Tremove 122
-  # Rremove 123
-  # Tstat   124
-  # Rstat   125
-  # Twstat  126
-  # Rwstat  127
-  # Topenfd 98
-  # Ropenfd 99
+  @impl true
+  def serialize(%Tattach{fid: fid, afid: afid, uname: uname, aname: aname}) do
+    data = <<fid::4*8-little, afid::4*8-little, serialize_binary(uname)::binary, serialize_binary(aname)::binary>>
+    {104, data}
+  end
 end
