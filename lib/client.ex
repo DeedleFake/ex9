@@ -7,7 +7,7 @@ defmodule Ex9P.Client do
     GenServer.start_link(__MODULE__, {self(), address, port, opts})
   end
 
-  def send(client, %Message{} = msg) do
+  def send(client, msg) do
     GenServer.call(client, {:send, msg})
   end
 
@@ -26,7 +26,7 @@ defmodule Ex9P.Client do
 
   @impl true
   def handle_continue({:send, msg}, state) do
-    data = Message.serialize(msg)
+    data = Message.serialize(msg, state.opts)
     :ok = :gen_tcp.send(state.socket, data)
     {:noreply, state}
   end
