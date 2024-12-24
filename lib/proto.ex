@@ -71,7 +71,11 @@ defmodule Ex9P.Proto do
     defstruct @enforce_keys
   end
 
-  # Rwalk   111
+  defmodule Rwalk do
+    @enforce_keys [:wqid]
+    defstruct @enforce_keys
+  end
+
   # Topen   112
   # Ropen   113
   # Tcreate 114
@@ -153,6 +157,12 @@ defmodule Ex9P.Proto do
   end
 
   @impl true
+  def deserialize(111, data) when is_binary(data) do
+    {wqid, ""} = deserialize_list(data, &QID.deserialize/1)
+    %Rwalk{wqid: wqid}
+  end
+
+  @impl true
   def serialize(%Tversion{msize: msize, version: version}) do
     data = [<<msize::4*8-little>>, serialize_binary(version)]
     {100, data}
@@ -222,5 +232,11 @@ defmodule Ex9P.Proto do
       ]
 
     {110, data}
+  end
+
+  @impl true
+  def serialize(%Rwalk{wqid: wqid}) do
+    data = serialize_list(wqid, &QID.serialize/1)
+    {111, data}
   end
 end
