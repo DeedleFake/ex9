@@ -49,6 +49,13 @@ defmodule Ex9P.Proto do
   end
 
   @impl true
+  def deserialize(107, <<ename::binary>>) do
+    {ename, ""} = deserialize_binary(ename)
+    data = %{ename: ename}
+    {:rerror, data}
+  end
+
+  @impl true
   def serialize(:tversion, %{msize: msize, version: version}) do
     data = <<msize::4*8-little, serialize_binary(version)::binary>>
     {100, data}
@@ -72,9 +79,14 @@ defmodule Ex9P.Proto do
     {103, data}
   end
 
+  @impl true
+  def serialize(:rerror, %{ename: ename}) do
+    data = serialize_binary(ename)
+    {107, data}
+  end
+
   # tattach 104
   # rattach 105
-  # rerror  107
   # tflush  108
   # rflush  109
   # twalk   110

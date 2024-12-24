@@ -4,15 +4,7 @@ defmodule Ex9P.Client do
   alias Ex9P.Message
 
   def connect(address, port, opts \\ []) do
-    with {:ok, socket} <- :gen_tcp.connect(address, port, []) do
-      state = %{
-        opts: opts,
-        socket: socket,
-        control: self()
-      }
-
-      GenServer.start_link(__MODULE__, state)
-    end
+    GenServer.start_link(__MODULE__, {self(), address, port, opts})
   end
 
   def send(client, %Message{} = msg) do
@@ -20,8 +12,16 @@ defmodule Ex9P.Client do
   end
 
   @impl true
-  def init(state) do
-    {:ok, state}
+  def init({control, address, port, opts}) do
+    with {:ok, socket} <- :gen_tcp.connect(address, port, []) do
+      state = %{
+        opts: opts,
+        socket: socket,
+        control: control
+      }
+
+      {:ok, state}
+    end
   end
 
   @impl true
@@ -38,7 +38,8 @@ defmodule Ex9P.Client do
   end
 
   @impl true
-  def handle_info({:tcp, socket, <<size::4*8-little, data::binary>>}, %{socket: socket} = state) do
+  def handle_info({:tcp, socket, data}, %{socket: socket} = state) do
+    <<size::4*8-little, data::binary>> = IO.iodata_to_binary(data)
     {msg, ""} = Message.deserialize(size, data, state.opts)
     Kernel.send(state.control, {Ex9P, self(), msg})
     {:noreply, state}
