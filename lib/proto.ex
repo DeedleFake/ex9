@@ -71,4 +71,30 @@ defmodule Ex9P.Proto do
     data = QID.serialize(aqid)
     {103, data}
   end
+
+  # tattach 104
+  # rattach 105
+  # rerror  107
+  # tflush  108
+  # rflush  109
+  # twalk   110
+  # rwalk   111
+  # topen   112
+  # ropen   113
+  # tcreate 114
+  # rcreate 115
+  # tread   116
+  # rread   117
+  # twrite  118
+  # rwrite  119
+  # tclunk  120
+  # rclunk  121
+  # tremove 122
+  # rremove 123
+  # tstat   124
+  # rstat   125
+  # twstat  126
+  # rwstat  127
+  # topenfd 98
+  # ropenfd 99
 end
