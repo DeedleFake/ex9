@@ -3,6 +3,14 @@ defmodule Ex9P.Conn do
 
   import Ex9P.Proto
 
+  def new(socket, opts \\ []) when is_port(socket) do
+    with :ok <- :gen_tcp.controlling_process(socket, self()),
+         {:ok, conn} <- GenServer.start_link(__MODULE__, {self(), socket, opts}) do
+      :ok = :gen_tcp.controlling_process(socket, conn)
+      {:ok, conn}
+    end
+  end
+
   def connect(address, port, opts \\ [])
 
   def connect(address, port, opts) when is_binary(address) do
@@ -20,14 +28,19 @@ defmodule Ex9P.Conn do
   @impl true
   def init({control, address, port, opts}) do
     with {:ok, socket} <- :gen_tcp.connect(address, port, []) do
-      state = %{
-        opts: opts,
-        socket: socket,
-        control: control
-      }
-
-      {:ok, state}
+      init({control, socket, opts})
     end
+  end
+
+  @impl true
+  def init({control, socket, opts}) when is_port(socket) do
+    state = %{
+      opts: opts,
+      socket: socket,
+      control: control
+    }
+
+    {:ok, state}
   end
 
   @impl true
