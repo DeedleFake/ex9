@@ -45,8 +45,7 @@ defmodule Ex9P.Conn do
 
   @impl true
   def handle_info({:tcp, socket, data}, %{socket: socket} = state) do
-    <<size::4*8-little, data::binary>> = IO.iodata_to_binary(data)
-    {msg, ""} = Message.deserialize(size, data, state.opts)
+    {msg, ""} = Message.deserialize(data, state.opts)
     Kernel.send(state.control, {Ex9P, self(), msg})
     {:noreply, state}
   end

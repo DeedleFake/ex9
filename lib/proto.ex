@@ -3,14 +3,11 @@ defmodule Ex9P.Proto do
   Protocol definition of standard 9P messages.
   """
 
+  use Ex9P.Message
+
   import Bitwise
 
-  @behaviour Ex9P.Message.Proto
-  import Ex9P.Message, only: [serialize_binary: 1, deserialize_binary: 1]
-
   @nofid (1 <<< 32) - 1
-  def nofid(), do: @nofid
-  defguard is_nofid(fid) when fid === @nofid
 
   defmodule QID do
     @enforce_keys [:type, :version, :path]
@@ -60,9 +57,20 @@ defmodule Ex9P.Proto do
     defstruct @enforce_keys
   end
 
-  # Tflush  108
-  # Rflush  109
-  # Twalk   110
+  defmodule Tflush do
+    @enforce_keys [:oldtag]
+    defstruct @enforce_keys
+  end
+
+  defmodule Rflush do
+    defstruct []
+  end
+
+  defmodule Twalk do
+    @enforce_keys [:fid, :newfid, :wname]
+    defstruct @enforce_keys
+  end
+
   # Rwalk   111
   # Topen   112
   # Ropen   113
@@ -116,6 +124,7 @@ defmodule Ex9P.Proto do
 
   @impl true
   def deserialize(104, <<fid::4*8-little, afid::4*8-little, rest::binary>>) do
+    afid = with @nofid <- afid, do: :nofid
     {uname, rest} = deserialize_binary(rest)
     {aname, ""} = deserialize_binary(rest)
     %Tattach{fid: fid, afid: afid, uname: uname, aname: aname}
@@ -128,20 +137,36 @@ defmodule Ex9P.Proto do
   end
 
   @impl true
+  def deserialize(108, <<oldtag::2*8-little>>) do
+    %Tflush{oldtag: oldtag}
+  end
+
+  @impl true
+  def deserialize(109, "") do
+    %Rflush{}
+  end
+
+  @impl true
+  def deserialize(110, <<fid::4*8-little, newfid::4*8-little, rest::binary>>) do
+    {wname, ""} = deserialize_list(rest, &deserialize_binary/1)
+    %Twalk{fid: fid, newfid: newfid, wname: wname}
+  end
+
+  @impl true
   def serialize(%Tversion{msize: msize, version: version}) do
-    data = <<msize::4*8-little, serialize_binary(version)::binary>>
+    data = [<<msize::4*8-little>>, serialize_binary(version)]
     {100, data}
   end
 
   @impl true
   def serialize(%Rversion{msize: msize, version: version}) do
-    data = <<msize::4*8-little, serialize_binary(version)::binary>>
+    data = [<<msize::4*8-little>>, serialize_binary(version)]
     {101, data}
   end
 
   @impl true
   def serialize(%Tauth{afid: afid, uname: uname, aname: aname}) do
-    data = <<afid::8*4-little, serialize_binary(uname)::binary, serialize_binary(aname)::binary>>
+    data = [<<afid::8*4-little>>, serialize_binary(uname), serialize_binary(aname)]
     {102, data}
   end
 
@@ -159,13 +184,14 @@ defmodule Ex9P.Proto do
 
   @impl true
   def serialize(%Tattach{fid: fid, afid: afid, uname: uname, aname: aname}) do
+    afid = with :nofid <- afid, do: @nofid
+
     data =
-      <<
-        fid::4*8-little,
-        afid::4*8-little,
-        serialize_binary(uname)::binary,
-        serialize_binary(aname)::binary
-      >>
+      [
+        <<fid::4*8-little, afid::4*8-little>>,
+        serialize_binary(uname),
+        serialize_binary(aname)
+      ]
 
     {104, data}
   end
@@ -174,5 +200,27 @@ defmodule Ex9P.Proto do
   def serialize(%Rattach{qid: qid}) do
     data = QID.serialize(qid)
     {105, data}
+  end
+
+  @impl true
+  def serialize(%Tflush{oldtag: oldtag}) do
+    data = <<oldtag::2*8-little>>
+    {108, data}
+  end
+
+  @impl true
+  def serialize(%Rflush{}) do
+    {109, ""}
+  end
+
+  @impl true
+  def serialize(%Twalk{fid: fid, newfid: newfid, wname: wname}) do
+    data =
+      [
+        <<fid::4*8-little, newfid::4*8-little>>,
+        serialize_list(wname, &serialize_binary/1)
+      ]
+
+    {110, data}
   end
 end
