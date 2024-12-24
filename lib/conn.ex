@@ -1,9 +1,15 @@
-defmodule Ex9P.Client do
+defmodule Ex9P.Conn do
   use GenServer
 
   alias Ex9P.Message
 
-  def connect(address, port, opts \\ []) do
+  def connect(address, port, opts \\ [])
+
+  def connect(address, port, opts) when is_binary(address) do
+    connect(String.to_charlist(address), port, opts)
+  end
+
+  def connect(address, port, opts) when is_list(address) do
     GenServer.start_link(__MODULE__, {self(), address, port, opts})
   end
 

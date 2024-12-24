@@ -3,8 +3,14 @@ defmodule Ex9P.Proto do
   Protocol definition of standard 9P messages.
   """
 
+  import Bitwise
+
   @behaviour Ex9P.Message.Proto
   import Ex9P.Message, only: [serialize_binary: 1, deserialize_binary: 1]
+
+  @nofid (1 <<< 32) - 1
+  def nofid(), do: @nofid
+  defguard is_nofid(fid) when fid === @nofid
 
   defmodule QID do
     @enforce_keys [:type, :version, :path]
@@ -49,8 +55,11 @@ defmodule Ex9P.Proto do
     defstruct @enforce_keys
   end
 
-  # Tattach 104
-  # Rattach 105
+  defmodule Rattach do
+    @enforce_keys [:qid]
+    defstruct @enforce_keys
+  end
+
   # Tflush  108
   # Rflush  109
   # Twalk   110
@@ -113,6 +122,12 @@ defmodule Ex9P.Proto do
   end
 
   @impl true
+  def deserialize(105, data) when is_binary(data) do
+    {qid, ""} = QID.deserialize(data)
+    %Rattach{qid: qid}
+  end
+
+  @impl true
   def serialize(%Tversion{msize: msize, version: version}) do
     data = <<msize::4*8-little, serialize_binary(version)::binary>>
     {100, data}
@@ -144,7 +159,20 @@ defmodule Ex9P.Proto do
 
   @impl true
   def serialize(%Tattach{fid: fid, afid: afid, uname: uname, aname: aname}) do
-    data = <<fid::4*8-little, afid::4*8-little, serialize_binary(uname)::binary, serialize_binary(aname)::binary>>
+    data =
+      <<
+        fid::4*8-little,
+        afid::4*8-little,
+        serialize_binary(uname)::binary,
+        serialize_binary(aname)::binary
+      >>
+
     {104, data}
+  end
+
+  @impl true
+  def serialize(%Rattach{qid: qid}) do
+    data = QID.serialize(qid)
+    {105, data}
   end
 end

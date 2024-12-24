@@ -7,6 +7,8 @@ defmodule Ex9P.Message do
 
   @notag (1 <<< 16) - 1
 
+  defguard is_notag(tag) when tag === @notag
+
   def deserialize(size, <<type::8, tag::2*8-little, rest::binary>>, opts \\ []) do
     %{proto: proto} = Keyword.validate!(opts, proto: Ex9P.Proto) |> Map.new()
 
