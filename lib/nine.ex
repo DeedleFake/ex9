@@ -60,7 +60,7 @@ defmodule Ex9P.Nine do
 
     typedstruct enforce: true do
       field :msize, pos_integer()
-      field :version, binary()
+      field :version, String.t()
     end
 
     @impl true
@@ -80,7 +80,7 @@ defmodule Ex9P.Nine do
 
     typedstruct enforce: true do
       field :msize, pos_integer()
-      field :version, binary()
+      field :version, String.t()
     end
 
     @impl true
@@ -100,8 +100,8 @@ defmodule Ex9P.Nine do
 
     typedstruct enforce: true do
       field :afid, Ex9P.Nine.fid()
-      field :uname, binary()
-      field :aname, binary()
+      field :uname, String.t()
+      field :aname, String.t()
     end
 
     @impl true
@@ -140,7 +140,7 @@ defmodule Ex9P.Nine do
     use TypedStruct
 
     typedstruct enforce: true do
-      field :ename, binary()
+      field :ename, String.t()
     end
 
     @impl true
@@ -161,8 +161,8 @@ defmodule Ex9P.Nine do
     typedstruct enforce: true do
       field :fid, Ex9P.Nine.fid()
       field :afid, Ex9P.Nine.fid()
-      field :uname, binary()
-      field :aname, binary()
+      field :uname, String.t()
+      field :aname, String.t()
     end
 
     @impl true
@@ -243,7 +243,7 @@ defmodule Ex9P.Nine do
     typedstruct enforce: true do
       field :fid, Ex9P.Nine.fid()
       field :newfid, Ex9P.Nine.fid()
-      field :wname, [binary()]
+      field :wname, [String.t()]
     end
 
     @impl true
@@ -299,22 +299,87 @@ defmodule Ex9P.Nine do
     end
   end
 
-  # Topen   112
-  # Ropen   113
-  # Tcreate 114
-  # Rcreate 115
-  # Tread   116
-  # Rread   117
-  # Twrite  118
-  # Rwrite  119
-  # Tclunk  120
-  # Rclunk  121
-  # Tremove 122
-  # Rremove 123
-  # Tstat   124
-  # Rstat   125
-  # Twstat  126
-  # Rwstat  127
-  # Topenfd 98
-  # Ropenfd 99
+  defmessage Ropen, 113 do
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :qid, QID.t()
+      field :iounit, integer()
+    end
+
+    @impl true
+    def decode(data) do
+      {qid, data} = QID.decode(data)
+      <<iounit::4*8-little>> = data
+      %__MODULE__{qid: qid, iounit: iounit}
+    end
+
+    @impl true
+    def encode(%__MODULE__{qid: qid, iounit: iounit}) do
+      [QID.encode(qid), <<iounit::4*8-little>>]
+    end
+  end
+
+  defmessage Tcreate, 114 do
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :fid, Ex9P.Nine.fid()
+      field :name, String.t()
+      field :perm, pos_integer()
+      field :mode, pos_integer()
+    end
+
+    @impl true
+    def decode(<<fid::4*8-little, data::binary>>) do
+      {name, data} = decode_binary(data)
+      <<perm::4*8-little, mode::1*8-little>> = data
+      %__MODULE__{fid: fid, name: name, perm: perm, mode: mode}
+    end
+
+    @impl true
+    def encode(%__MODULE__{fid: fid, name: name, perm: perm, mode: mode}) do
+      [
+        <<fid::4*8-little>>,
+        encode_binary(name),
+        <<perm::4*8-little, mode::1*8-little>>
+      ]
+    end
+  end
+
+  defmessage Rcreate, 115 do
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :qid, QID.t()
+      field :iounit, integer()
+    end
+
+    @impl true
+    def decode(data) do
+      {qid, data} = QID.decode(data)
+      <<iounit::4*8-little>> = data
+      %__MODULE__{qid: qid, iounit: iounit}
+    end
+
+    @impl true
+    def encode(%__MODULE__{qid: qid, iounit: iounit}) do
+      [QID.encode(qid), <<iounit::4*8-little>>]
+    end
+  end
+
+  # Tread, 116
+  # Rread, 117
+  # Twrite, 118
+  # Rwrite, 119
+  # Tclunk, 120
+  # Rclunk, 121
+  # Tremove, 122
+  # Rremove, 123
+  # Tstat, 124
+  # Rstat, 125
+  # Twstat, 126
+  # Rwstat, 127
+  # Topenfd, 98
+  # Ropenfd, 99
 end
