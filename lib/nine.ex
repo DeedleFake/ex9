@@ -8,7 +8,7 @@ defmodule Ex9P.Nine.DSL do
         @callback decode(binary()) :: %__MODULE__{}
         @callback encode(%__MODULE__{}) :: iodata()
 
-        @nofid (1 <<< 32) - 1
+        @nofid Bitwise.bsl(1, 32) - 1
 
         def type_id(), do: unquote(type_id)
         unquote(block)
@@ -31,7 +31,6 @@ defmodule Ex9P.Nine do
 
   use Ex9P.Proto
 
-  import Bitwise
   import __MODULE__.DSL
 
   @opaque fid() :: non_neg_integer()
@@ -67,11 +66,11 @@ defmodule Ex9P.Nine do
     @impl true
     def decode(<<msize::4*8-little, rest::binary>>) do
       {version, ""} = decode_binary(rest)
-      %Tversion{msize: msize, version: version}
+      %__MODULE__{msize: msize, version: version}
     end
 
     @impl true
-    def encode(%Tversion{msize: msize, version: version}) do
+    def encode(%__MODULE__{msize: msize, version: version}) do
       [<<msize::4*8-little>>, encode_binary(version)]
     end
   end
@@ -87,11 +86,11 @@ defmodule Ex9P.Nine do
     @impl true
     def decode(<<msize::4*8-little, rest::binary>>) do
       {version, ""} = decode_binary(rest)
-      %Rversion{msize: msize, version: version}
+      %__MODULE__{msize: msize, version: version}
     end
 
     @impl true
-    def encode(%Rversion{msize: msize, version: version}) do
+    def encode(%__MODULE__{msize: msize, version: version}) do
       [<<msize::4*8-little>>, encode_binary(version)]
     end
   end
@@ -109,11 +108,11 @@ defmodule Ex9P.Nine do
     def decode(<<afid::8*4-little, rest::binary>>) do
       {uname, rest} = decode_binary(rest)
       {aname, ""} = decode_binary(rest)
-      %Tauth{afid: afid, uname: uname, aname: aname}
+      %__MODULE__{afid: afid, uname: uname, aname: aname}
     end
 
     @impl true
-    def encode(%Tauth{afid: afid, uname: uname, aname: aname}) do
+    def encode(%__MODULE__{afid: afid, uname: uname, aname: aname}) do
       [<<afid::8*4-little>>, encode_binary(uname), encode_binary(aname)]
     end
   end
@@ -128,11 +127,11 @@ defmodule Ex9P.Nine do
     @impl true
     def decode(<<data::13*8-binary>>) do
       {aqid, ""} = QID.decode(data)
-      %Rauth{aqid: aqid}
+      %__MODULE__{aqid: aqid}
     end
 
     @impl true
-    def encode(%Rauth{aqid: aqid}) do
+    def encode(%__MODULE__{aqid: aqid}) do
       QID.encode(aqid)
     end
   end
@@ -147,11 +146,11 @@ defmodule Ex9P.Nine do
     @impl true
     def decode(<<ename::binary>>) do
       {ename, ""} = decode_binary(ename)
-      %Rerror{ename: ename}
+      %__MODULE__{ename: ename}
     end
 
     @impl true
-    def encode(%Rerror{ename: ename}) do
+    def encode(%__MODULE__{ename: ename}) do
       encode_binary(ename)
     end
   end
@@ -171,11 +170,11 @@ defmodule Ex9P.Nine do
       afid = with @nofid <- afid, do: :nofid
       {uname, rest} = decode_binary(rest)
       {aname, ""} = decode_binary(rest)
-      %Tattach{fid: fid, afid: afid, uname: uname, aname: aname}
+      %__MODULE__{fid: fid, afid: afid, uname: uname, aname: aname}
     end
 
     @impl true
-    def encode(%Tattach{fid: fid, afid: afid, uname: uname, aname: aname}) do
+    def encode(%__MODULE__{fid: fid, afid: afid, uname: uname, aname: aname}) do
       afid = with :nofid <- afid, do: @nofid
 
       [
@@ -196,11 +195,11 @@ defmodule Ex9P.Nine do
     @impl true
     def decode(data) do
       {qid, ""} = QID.decode(data)
-      %Rattach{qid: qid}
+      %__MODULE__{qid: qid}
     end
 
     @impl true
-    def encode(%Rattach{qid: qid}) do
+    def encode(%__MODULE__{qid: qid}) do
       QID.encode(qid)
     end
   end
@@ -214,11 +213,11 @@ defmodule Ex9P.Nine do
 
     @impl true
     def decode(<<oldtag::2*8-little>>) do
-      %Tflush{oldtag: oldtag}
+      %__MODULE__{oldtag: oldtag}
     end
 
     @impl true
-    def encode(%Tflush{oldtag: oldtag}) do
+    def encode(%__MODULE__{oldtag: oldtag}) do
       <<oldtag::2*8-little>>
     end
   end
@@ -229,11 +228,11 @@ defmodule Ex9P.Nine do
 
     @impl true
     def decode("") do
-      %Rflush{}
+      %__MODULE__{}
     end
 
     @impl true
-    def encode(%Rflush{}) do
+    def encode(%__MODULE__{}) do
       ""
     end
   end
@@ -250,11 +249,11 @@ defmodule Ex9P.Nine do
     @impl true
     def decode(<<fid::4*8-little, newfid::4*8-little, rest::binary>>) do
       {wname, ""} = decode_list(rest, &decode_binary/1)
-      %Twalk{fid: fid, newfid: newfid, wname: wname}
+      %__MODULE__{fid: fid, newfid: newfid, wname: wname}
     end
 
     @impl true
-    def encode(%Twalk{fid: fid, newfid: newfid, wname: wname}) do
+    def encode(%__MODULE__{fid: fid, newfid: newfid, wname: wname}) do
       [
         <<fid::4*8-little, newfid::4*8-little>>,
         encode_list(wname, &encode_binary/1)
@@ -272,12 +271,31 @@ defmodule Ex9P.Nine do
     @impl true
     def decode(data) when is_binary(data) do
       {wqid, ""} = decode_list(data, &QID.decode/1)
-      %Rwalk{wqid: wqid}
+      %__MODULE__{wqid: wqid}
     end
 
     @impl true
-    def encode(%Rwalk{wqid: wqid}) do
+    def encode(%__MODULE__{wqid: wqid}) do
       encode_list(wqid, &QID.encode/1)
+    end
+  end
+
+  defmessage Topen, 112 do
+    use TypedStruct
+
+    typedstruct do
+      field :fid, non_neg_integer()
+      field :mode, pos_integer()
+    end
+
+    @impl true
+    def decode(<<fid::4*8-little, mode::1*8-little>>) do
+      %__MODULE__{fid: fid, mode: mode}
+    end
+
+    @impl true
+    def encode(%__MODULE__{fid: fid, mode: mode}) do
+      <<fid::4*8-little, mode::1*8-little>>
     end
   end
 
