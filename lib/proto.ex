@@ -34,7 +34,9 @@ defmodule Ex9P.Proto do
   end
 
   @spec encode_message(message, options) :: message_data
-        when message: struct(), options: keyword(), message_data: iodata()
+        when message: struct() | {pos_integer(), struct()},
+             options: keyword(),
+             message_data: iodata()
   def encode_message(msg, opts \\ [])
 
   def encode_message({tag, msg}, opts) do
