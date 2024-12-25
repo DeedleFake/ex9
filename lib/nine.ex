@@ -392,7 +392,7 @@ defmodule Ex9P.Nine do
     use TypedStruct
 
     typedstruct enforce: true do
-      field :data, binary()
+      field :data, iodata()
     end
 
     @impl true
@@ -407,8 +407,48 @@ defmodule Ex9P.Nine do
     end
   end
 
-  # Twrite, 118
-  # Rwrite, 119
+  defmessage Twrite, 118 do
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :fid, Ex9P.Nine.fid()
+      field :offset, non_neg_integer()
+      field :data, iodata()
+    end
+
+    @impl true
+    def decode(<<fid::4*8-little, offset::8*8-little, data::binary>>) do
+      {data, ""} = decode_binary(4, data)
+      %__MODULE__{fid: fid, offset: offset, data: data}
+    end
+
+    @impl true
+    def encode(%__MODULE__{fid: fid, offset: offset, data: data}) do
+      [
+        <<fid::4*8-little, offset::8*8-little>>,
+        encode_binary(4, data)
+      ]
+    end
+  end
+
+  defmessage Rwrite, 119 do
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :count, non_neg_integer()
+    end
+
+    @impl true
+    def decode(<<count::4*8-little>>) do
+      %__MODULE__{count: count}
+    end
+
+    @impl true
+    def encode(%__MODULE__{count: count}) do
+      <<count::4*8-little>>
+    end
+  end
+
   # Tclunk, 120
   # Rclunk, 121
   # Tremove, 122
