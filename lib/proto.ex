@@ -13,10 +13,13 @@ defmodule Ex9P.Proto do
     end
   end
 
+  @type tag() :: non_neg_integer()
+  @type message_type() :: non_neg_integer()
+
   @callback decode(type_id, data) :: message
-            when type_id: pos_integer(), data: binary(), message: struct()
+            when type_id: message_type(), data: binary(), message: struct()
   @callback encode(message) :: {type_id, data}
-            when message: struct(), type_id: pos_integer(), data: iodata()
+            when message: struct(), type_id: message_type(), data: iodata()
 
   @notag (1 <<< 16) - 1
 
@@ -34,7 +37,7 @@ defmodule Ex9P.Proto do
   end
 
   @spec encode_message(message, options) :: message_data
-        when message: struct() | {pos_integer(), struct()},
+        when message: struct() | {tag(), struct()},
              options: keyword(),
              message_data: iodata()
   def encode_message(msg, opts \\ [])

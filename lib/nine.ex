@@ -9,71 +9,120 @@ defmodule Ex9P.Nine do
 
   @nofid (1 <<< 32) - 1
 
-  defmodule QID do
-    @enforce_keys [:type, :version, :path]
-    defstruct @enforce_keys
+  @opaque fid() :: non_neg_integer()
 
+  defmodule QID do
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :type, non_neg_integer()
+      field :version, non_neg_integer()
+      field :path, non_neg_integer()
+    end
+
+    @spec decode(binary()) :: {t(), binary()}
     def decode(<<type::8, version::8*4-little, path::8*8-little, rest::binary>>) do
       {%__MODULE__{type: type, version: version, path: path}, rest}
     end
 
+    @spec encode(t()) :: iodata()
     def encode(%{type: type, version: version, path: path}) do
       <<type::8, version::8*4-little, path::8*8-little>>
     end
   end
 
   defmodule Tversion do
-    @enforce_keys [:msize, :version]
-    defstruct @enforce_keys
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :msize, pos_integer()
+      field :version, binary()
+    end
   end
 
   defmodule Rversion do
-    @enforce_keys [:msize, :version]
-    defstruct @enforce_keys
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :msize, pos_integer()
+      field :version, binary()
+    end
   end
 
   defmodule Tauth do
-    @enforce_keys [:afid, :uname, :aname]
-    defstruct @enforce_keys
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :afid, Ex9P.Nine.fid()
+      field :uname, binary()
+      field :aname, binary()
+    end
   end
 
   defmodule Rauth do
-    @enforce_keys [:aqid]
-    defstruct @enforce_keys
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :aqid, QID.t()
+    end
   end
 
   defmodule Rerror do
-    @enforce_keys [:ename]
-    defstruct @enforce_keys
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :ename, binary()
+    end
   end
 
   defmodule Tattach do
-    @enforce_keys [:fid, :afid, :uname, :aname]
-    defstruct @enforce_keys
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :fid, Ex9P.Nine.fid()
+      field :afid, Ex9P.Nine.fid()
+      field :uname, binary()
+      field :aname, binary()
+    end
   end
 
   defmodule Rattach do
-    @enforce_keys [:qid]
-    defstruct @enforce_keys
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :qid, QID.t()
+    end
   end
 
   defmodule Tflush do
-    @enforce_keys [:oldtag]
-    defstruct @enforce_keys
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :oldtag, Ex9P.Proto.tag()
+    end
   end
 
   defmodule Rflush do
     defstruct []
+    @type t() :: %__MODULE__{}
   end
 
   defmodule Twalk do
-    @enforce_keys [:fid, :newfid, :wname]
-    defstruct @enforce_keys
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :fid, Ex9P.Nine.fid()
+      field :newfid, Ex9P.Nine.fid()
+      field :wname, [binary()]
+    end
   end
 
   defmodule Rwalk do
-    @enforce_keys [:wqid]
-    defstruct @enforce_keys
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :wqid, [QID.t()]
+    end
   end
 
   # Topen   112

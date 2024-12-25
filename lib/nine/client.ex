@@ -6,6 +6,18 @@ defmodule Ex9P.Nine.Client do
 
   @version "9P2000"
 
+  @opaque t() :: GenServer.server()
+
+  defmodule File do
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :client, Nine.Client.t()
+      field :fid, Nine.fid()
+      field :qid, Nine.QID.t()
+    end
+  end
+
   def start_link(opts) do
     {server_opts, opts} = Keyword.split(opts, [:name])
     GenServer.start_link(__MODULE__, opts, server_opts)
@@ -33,7 +45,7 @@ defmodule Ex9P.Nine.Client do
     rsp = request(client, %Nine.Tattach{uname: uname, aname: aname, fid: fid, afid: afid})
 
     with %Nine.Rattach{qid: qid} <- rsp do
-      {:ok, qid}
+      {:ok, %File{client: client, fid: fid, qid: qid}}
     else
       %Nine.Rerror{ename: ename} -> {:error, ename}
     end
@@ -41,13 +53,8 @@ defmodule Ex9P.Nine.Client do
 
   @impl true
   def init(opts) do
-    opts = Keyword.validate!(opts, [:address, :port, :conn, connect_opts: []])
-
-    conn =
-      with nil <- opts[:conn] do
-        {:ok, conn} = Conn.connect(opts[:address], opts[:port], opts[:connect_opts])
-        conn
-      end
+    opts = Keyword.validate!(opts, [:address, port: 0, connect_opts: []])
+    {:ok, conn} = Conn.connect(opts[:address], opts[:port], opts[:connect_opts])
 
     state = %{
       conn: conn,
