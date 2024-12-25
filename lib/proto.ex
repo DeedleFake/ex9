@@ -54,16 +54,18 @@ defmodule Ex9P.Proto do
     encode_message({@notag, msg}, opts)
   end
 
-  @spec decode_binary(data) :: {decoded_data, rest}
-        when data: iodata(), decoded_data: binary(), rest: binary()
-  def decode_binary(<<size::2*8-little, data::binary>>) do
+  @spec decode_binary(size_bytes, data) :: {decoded_data, rest}
+        when size_bytes: pos_integer(), data: iodata(), decoded_data: binary(), rest: binary()
+  def decode_binary(size_bytes \\ 2, data) do
+    <<size::(^size_bytes)*8-little, data::binary>> = data
     <<data::(^size)*8-binary, rest::binary>> = IO.iodata_to_binary(data)
     {data, rest}
   end
 
-  @spec encode_binary(data) :: encoded_data when data: iodata(), encoded_data: iodata()
-  def encode_binary(data) do
-    [<<IO.iodata_length(data)::2*8-little>>, data]
+  @spec encode_binary(size_bytes, data) :: encoded_data
+        when size_bytes: pos_integer(), data: iodata(), encoded_data: iodata()
+  def encode_binary(size_bytes \\ 2, data) do
+    [<<IO.iodata_length(data)::size_bytes*8-little>>, data]
   end
 
   @spec decode_list(data, decode_element) :: {list, rest}
