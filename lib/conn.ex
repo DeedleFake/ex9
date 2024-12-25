@@ -3,9 +3,23 @@ defmodule Ex9P.Conn do
 
   import Ex9P.Proto
 
+  def start_link(opts) do
+    {socket, opts} = Keyword.pop(opts, :socket)
+
+    if socket do
+      new(socket, opts)
+    else
+      {address, opts} = Keyword.pop!(opts, :address)
+      {port, opts} = Keyword.pop!(opts, :port)
+      connect(address, port, opts)
+    end
+  end
+
   def new(socket, opts \\ []) when is_port(socket) do
+    {server_opts, opts} = Keyword.split(opts, [:name])
+
     with :ok <- :gen_tcp.controlling_process(socket, self()),
-         {:ok, conn} <- GenServer.start_link(__MODULE__, {self(), socket, opts}) do
+         {:ok, conn} <- GenServer.start_link(__MODULE__, {self(), socket, opts}, server_opts) do
       :ok = :gen_tcp.controlling_process(socket, conn)
       {:ok, conn}
     end
@@ -17,8 +31,9 @@ defmodule Ex9P.Conn do
     connect(String.to_charlist(address), port, opts)
   end
 
-  def connect(address, port, opts) when is_list(address) do
-    GenServer.start_link(__MODULE__, {self(), address, port, opts})
+  def connect(address, port, opts) do
+    {server_opts, opts} = Keyword.split(opts, [:name])
+    GenServer.start_link(__MODULE__, {self(), address, port, opts}, server_opts)
   end
 
   def send(client, msg) do
