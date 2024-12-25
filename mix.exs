@@ -22,7 +22,7 @@ defmodule Ex9P.MixProject do
   defp deps do
     [
       {:typedstruct, "~> 0.5"},
-      {:dialyxir, "~> 1.4", runtime: false}
+      {:dialyxir, "~> 1.4", runtime: false, only: [:dev, :test]}
     ]
   end
 end
