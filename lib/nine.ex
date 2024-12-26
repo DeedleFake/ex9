@@ -50,8 +50,89 @@ defmodule Ex9P.Nine do
     end
 
     @spec encode(t()) :: iodata()
-    def encode(%{type: type, version: version, path: path}) do
+    def encode(%__MODULE__{type: type, version: version, path: path}) do
       <<type::8, version::8*4-little, path::8*8-little>>
+    end
+  end
+
+  defmodule DirEntry do
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :type, integer()
+      field :dev, integer()
+      field :qid, QID.t()
+      field :mode, non_neg_integer()
+      field :atime, DateTime.t()
+      field :mtime, DateTime.t()
+      field :length, non_neg_integer()
+      field :name, String.t()
+      field :uid, String.t()
+      field :gid, String.t()
+      field :muid, String.t()
+    end
+
+    @spec decode(binary()) :: {t(), binary()}
+    def decode(<<type::2*8-little, dev::4*8-little, data::binary>>) do
+      {qid, data} = QID.decode(data)
+
+      <<
+        mode::4*8-little,
+        atime::4*8-little,
+        mtime::4*8-little,
+        length::8*8-little,
+        data::binary
+      >> = data
+
+      {name, data} = decode_binary(data)
+      {uid, data} = decode_binary(data)
+      {gid, data} = decode_binary(data)
+      {muid, data} = decode_binary(data)
+
+      atime = DateTime.from_unix!(atime, :second)
+      mtime = DateTime.from_unix!(mtime, :second)
+
+      {%__MODULE__{
+         type: type,
+         dev: dev,
+         qid: qid,
+         mode: mode,
+         atime: atime,
+         mtime: mtime,
+         length: length,
+         name: name,
+         uid: uid,
+         gid: gid,
+         muid: muid
+       }, data}
+    end
+
+    @spec encode(t()) :: iodata()
+    def encode(%__MODULE__{
+          type: type,
+          dev: dev,
+          qid: qid,
+          mode: mode,
+          atime: atime,
+          mtime: mtime,
+          length: length,
+          name: name,
+          uid: uid,
+          gid: gid,
+          muid: muid
+        }) do
+      atime = DateTime.to_unix(atime)
+      mtime = DateTime.to_unix(mtime)
+
+      [
+        <<type::2*8-little, dev::4*8-little>>,
+        QID.encode(qid),
+        <<mode::4*8-little, atime::4*8-little, mtime::4*8-little, length::8*8-little>>,
+        encode_binary(name),
+        encode_binary(uid),
+        encode_binary(gid),
+        encode_binary(muid)
+      ]
     end
   end
 
@@ -449,12 +530,109 @@ defmodule Ex9P.Nine do
     end
   end
 
-  # Tclunk, 120
-  # Rclunk, 121
-  # Tremove, 122
-  # Rremove, 123
-  # Tstat, 124
-  # Rstat, 125
+  defmessage Tclunk, 120 do
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :fid, Ex9P.Nine.fid()
+    end
+
+    @impl true
+    def decode(<<fid::4*8-little>>) do
+      %__MODULE__{fid: fid}
+    end
+
+    @impl true
+    def encode(%__MODULE__{fid: fid}) do
+      <<fid::4*8-little>>
+    end
+  end
+
+  defmessage Rclunk, 121 do
+    defstruct []
+    @type t() :: %__MODULE__{}
+
+    @impl true
+    def decode("") do
+      %__MODULE__{}
+    end
+
+    @impl true
+    def encode(%__MODULE__{}) do
+      ""
+    end
+  end
+
+  defmessage Tremove, 122 do
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :fid, Ex9P.Nine.fid()
+    end
+
+    @impl true
+    def decode(<<fid::4*8-little>>) do
+      %__MODULE__{fid: fid}
+    end
+
+    @impl true
+    def encode(%__MODULE__{fid: fid}) do
+      <<fid::4*8-little>>
+    end
+  end
+
+  defmessage Rremove, 123 do
+    defstruct []
+    @type t() :: %__MODULE__{}
+
+    @impl true
+    def decode("") do
+      %__MODULE__{}
+    end
+
+    @impl true
+    def encode(%__MODULE__{}) do
+      ""
+    end
+  end
+
+  defmessage Tstat, 124 do
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :fid, Ex9P.Nine.fid()
+    end
+
+    @impl true
+    def decode(<<fid::4*8-little>>) do
+      %__MODULE__{fid: fid}
+    end
+
+    @impl true
+    def encode(%__MODULE__{fid: fid}) do
+      <<fid::4*8-little>>
+    end
+  end
+
+  defmessage Rstat, 125 do
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :stat, DirEntry.t()
+    end
+
+    @impl true
+    def decode(data) do
+      {stat, ""} = DirEntry.decode(data)
+      %__MODULE__{stat: stat}
+    end
+
+    @impl true
+    def encode(%__MODULE__{stat: stat}) do
+      DirEntry.encode(stat)
+    end
+  end
+
   # Twstat, 126
   # Rwstat, 127
   # Topenfd, 98
