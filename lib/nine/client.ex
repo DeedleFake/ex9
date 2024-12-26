@@ -66,8 +66,8 @@ defmodule Ex9P.Nine.Client do
     end
   end
 
-  @spec open(File.t(), Nine.mode()) :: :ok | {:error, Exception.t()}
-  def open(%File{client: client, fid: fid}, mode) do
+  @spec open(File.t(), [Nine.mode()]) :: :ok | {:error, Exception.t()}
+  def open(%File{client: client, fid: fid}, mode \\ [:read]) do
     rsp = request(client, %Nine.Topen{fid: fid, mode: mode})
 
     with %Nine.Ropen{} <- rsp do

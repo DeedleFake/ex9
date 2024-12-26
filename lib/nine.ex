@@ -30,120 +30,82 @@ defmodule Ex9P.Nine do
   """
 
   use Ex9P.Proto
-
   import __MODULE__.DSL
 
+  alias Ex9P.Nine.{QID, DirEntry, Perms}
+
   @opaque fid() :: non_neg_integer()
-  @type mode() :: integer()
 
-  defmodule QID do
-    use TypedStruct
+  @type mode() ::
+          :read
+          | :write
+          | :exec
+          | :trunc
+          | :close_on_exec
+          | :remove_on_close
+          | :direct
+          | :non_blocking
+          | :exclusive
+          | :lock
+          | :append
 
-    typedstruct do
-      field :type, integer(), default: -1
-      field :version, integer(), default: -1
-      field :path, integer(), default: -1
-    end
+  def decode_mode(mode) do
+    <<
+      append::1,
+      lock::1,
+      exclusive::1,
+      _::3,
+      non_blocking::1,
+      direct::1,
+      remove_on_close::1,
+      close_on_exec::1,
+      trunc::1,
+      _::1,
+      exec::1,
+      write::1,
+      read::1
+    >> = <<mode + 1::15>>
 
-    @spec decode(binary()) :: {t(), binary()}
-    def decode(<<
-          type::1*8-little-signed,
-          version::4*8-little-signed,
-          path::8*8-little-signed,
-          rest::binary
-        >>) do
-      {%__MODULE__{type: type, version: version, path: path}, rest}
-    end
-
-    @spec encode(t()) :: iodata()
-    def encode(%__MODULE__{type: type, version: version, path: path}) do
-      <<type::1*8-signed, version::4*8-little, path::8*8-little>>
-    end
-  end
-
-  defmodule DirEntry do
-    use TypedStruct
-
-    typedstruct do
-      field :type, integer(), default: -1
-      field :dev, integer(), default: -1
-      field :qid, QID.t(), default: %QID{type: -1, version: -1, path: -1}
-      field :mode, Ex9P.Nine.mode(), default: -1
-      field :atime, DateTime.t() | nil, default: nil
-      field :mtime, DateTime.t() | nil, default: nil
-      field :length, integer(), default: -1
-      field :name, String.t(), default: ""
-      field :uid, String.t(), default: ""
-      field :gid, String.t(), default: ""
-      field :muid, String.t(), default: ""
-    end
-
-    @spec decode(binary()) :: {t(), binary()}
-    def decode(<<size::2*8-little, data::binary>>) do
-      <<data::(^size)*8-binary, rest::binary>> = data
-
-      <<type::2*8-little, dev::4*8-little, data::binary>> = data
-      {qid, data} = QID.decode(data)
-
-      <<
-        mode::4*8-little-signed,
-        atime::4*8-little-signed,
-        mtime::4*8-little-signed,
-        length::8*8-little-signed,
-        data::binary
-      >> = data
-
-      {name, data} = decode_binary(data)
-      {uid, data} = decode_binary(data)
-      {gid, data} = decode_binary(data)
-      {muid, ""} = decode_binary(data)
-
-      atime = if atime < 0, do: nil, else: DateTime.from_unix!(atime, :second)
-      mtime = if mtime < 0, do: nil, else: DateTime.from_unix!(mtime, :second)
-
-      {%__MODULE__{
-         type: type,
-         dev: dev,
-         qid: qid,
-         mode: mode,
-         atime: atime,
-         mtime: mtime,
-         length: length,
-         name: name,
-         uid: uid,
-         gid: gid,
-         muid: muid
-       }, rest}
-    end
-
-    @spec encode(t()) :: iodata()
-    def encode(%__MODULE__{
-          type: type,
-          dev: dev,
-          qid: qid,
-          mode: mode,
-          atime: atime,
-          mtime: mtime,
-          length: length,
-          name: name,
-          uid: uid,
-          gid: gid,
-          muid: muid
-        }) do
-      atime = if atime, do: DateTime.to_unix(atime), else: -1
-      mtime = if mtime, do: DateTime.to_unix(mtime), else: -1
-
-      [
-        <<type::2*8-little, dev::4*8-little>>,
-        QID.encode(qid),
-        <<mode::4*8-little, atime::4*8-little, mtime::4*8-little, length::8*8-little>>,
-        encode_binary(name),
-        encode_binary(uid),
-        encode_binary(gid),
-        encode_binary(muid)
-      ]
+    []
+    |> add_if(:read, read != 0)
+    |> add_if(:write, write != 0)
+    |> add_if(:exec, exec != 0)
+    |> add_if(:trunc, trunc != 0)
+    |> add_if(:close_on_exec, close_on_exec != 0)
+    |> add_if(:remove_on_close, remove_on_close != 0)
+    |> add_if(:direct, direct != 0)
+    |> add_if(:non_blocking, non_blocking != 0)
+    |> add_if(:exclusive, exclusive != 0)
+    |> add_if(:lock, lock != 0)
+    |> add_if(:append, append != 0)
+    |> case do
+      [] -> :read
+      mode -> mode
     end
   end
+
+  def encode_mode([]), do: 0
+
+  def encode_mode(mode) do
+    (mode
+     |> Stream.map(&mode_bits/1)
+     |> Enum.reduce(0, &Bitwise.bor/2)) - 1
+  end
+
+  defp add_if(items, item, true), do: [item | items]
+  defp add_if(items, _item, false), do: items
+
+  defp mode_bits(:read), do: 1
+  defp mode_bits(:write), do: 2
+  defp mode_bits(:exec), do: 4
+  defp mode_bits(:trunc), do: 16
+  defp mode_bits(:close_on_exec), do: 32
+  defp mode_bits(:remove_on_close), do: 64
+  defp mode_bits(:direct), do: 128
+  defp mode_bits(:non_blocking), do: 256
+  defp mode_bits(:exclusive), do: 0x1000
+  defp mode_bits(:lock), do: 0x2000
+  defp mode_bits(:append), do: 0x4000
 
   defmessage Tversion, 100 do
     use TypedStruct
@@ -381,17 +343,17 @@ defmodule Ex9P.Nine do
 
     typedstruct do
       field :fid, non_neg_integer()
-      field :mode, Ex9P.Nine.mode()
+      field :mode, [Ex9P.Nine.mode()]
     end
 
     @impl true
     def decode(<<fid::4*8-little, mode::1*8-little>>) do
-      %__MODULE__{fid: fid, mode: mode}
+      %__MODULE__{fid: fid, mode: Ex9P.Nine.decode_mode(mode)}
     end
 
     @impl true
     def encode(%__MODULE__{fid: fid, mode: mode}) do
-      <<fid::4*8-little, mode::1*8-little>>
+      <<fid::4*8-little, Ex9P.Nine.encode_mode(mode)::1*8-little>>
     end
   end
 
@@ -422,15 +384,16 @@ defmodule Ex9P.Nine do
     typedstruct enforce: true do
       field :fid, Ex9P.Nine.fid()
       field :name, String.t()
-      field :perm, pos_integer()
-      field :mode, Ex9P.Nine.mode()
+      field :perm, Perms.t()
+      field :mode, [Ex9P.Nine.mode()]
     end
 
     @impl true
     def decode(<<fid::4*8-little, data::binary>>) do
       {name, data} = decode_binary(data)
-      <<perm::4*8-little, mode::1*8-little>> = data
-      %__MODULE__{fid: fid, name: name, perm: perm, mode: mode}
+      {perm, data} = Perms.decode(data)
+      <<mode::1*8-little>> = data
+      %__MODULE__{fid: fid, name: name, perm: perm, mode: Ex9P.Nine.decode_mode(mode)}
     end
 
     @impl true
@@ -438,7 +401,8 @@ defmodule Ex9P.Nine do
       [
         <<fid::4*8-little>>,
         encode_binary(name),
-        <<perm::4*8-little, mode::1*8-little>>
+        Perms.encode(perm),
+        <<Ex9P.Nine.encode_mode(mode)::1*8-little>>
       ]
     end
   end
@@ -692,17 +656,17 @@ defmodule Ex9P.Nine do
 
     typedstruct enforce: true do
       field :fid, Ex9P.Nine.fid()
-      field :mode, Ex9P.Nine.mode()
+      field :mode, [Ex9P.Nine.mode()]
     end
 
     @impl true
     def decode(<<fid::4*8-little, mode::1*8-little>>) do
-      %__MODULE__{fid: fid, mode: mode}
+      %__MODULE__{fid: fid, mode: Ex9P.Nine.decode_mode(mode)}
     end
 
     @impl true
     def encode(%__MODULE__{fid: fid, mode: mode}) do
-      <<fid::4*8-little, mode::1*8-little>>
+      <<fid::4*8-little, Ex9P.Nine.encode_mode(mode)::1*8-little>>
     end
   end
 
