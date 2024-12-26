@@ -29,7 +29,7 @@ defmodule Ex9P.Nine.Client do
   end
 
   @spec handshake(t(), pos_integer()) ::
-          {:ok, pos_integer()} | {:error, String.t()} | {:error, :unsupported_version}
+          {:ok, pos_integer()} | {:error, Exception.t()} | {:error, :unsupported_version}
   def handshake(client, msize) do
     rsp = request(client, %Nine.Tversion{msize: msize, version: @version}, notag: true)
 
@@ -37,13 +37,13 @@ defmodule Ex9P.Nine.Client do
          ^version <- @version do
       {:ok, msize}
     else
-      %Nine.Rerror{ename: ename} -> {:error, ename}
+      err when is_exception(err) -> {:error, err}
       @version -> {:error, :unsupported_version}
     end
   end
 
   @spec attach(t(), String.t(), String.t(), File.t() | nil) ::
-          {:ok, File.t()} | {:error, String.t()}
+          {:ok, File.t()} | {:error, Exception.t()}
   def attach(client, aname, uname, afile \\ nil) do
     afid = if afile, do: afile.fid, else: :nofid
     fid = GenServer.call(client, :next_fid)
@@ -52,7 +52,7 @@ defmodule Ex9P.Nine.Client do
     with %Nine.Rattach{qid: qid} <- rsp do
       {:ok, %File{client: client, fid: fid, qid: qid}}
     else
-      %Nine.Rerror{ename: ename} -> {:error, ename}
+      err when is_exception(err) -> {:error, err}
     end
   end
 
@@ -63,7 +63,7 @@ defmodule Ex9P.Nine.Client do
     with %Nine.Rstat{stat: stat} <- rsp do
       {:ok, stat}
     else
-      %Nine.Rerror{ename: ename} -> {:error, ename}
+      err when is_exception(err) -> {:error, err}
     end
   end
 
@@ -76,7 +76,7 @@ defmodule Ex9P.Nine.Client do
     with %Nine.Rwalk{wqid: wqid} <- rsp do
       {:ok, %File{client: client, fid: newfid, qid: List.last(wqid)}}
     else
-      %Nine.Rerror{ename: ename} -> {:error, ename}
+      err when is_exception(err) -> {:error, err}
     end
   end
 

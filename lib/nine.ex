@@ -229,11 +229,12 @@ defmodule Ex9P.Nine do
   end
 
   defmessage Rerror, 107 do
-    use TypedStruct
+    @enforce_keys [:ename]
+    defexception @enforce_keys
 
-    typedstruct enforce: true do
-      field :ename, String.t()
-    end
+    @type t() :: %__MODULE__{
+            ename: String.t()
+          }
 
     @impl true
     def decode(<<ename::binary>>) do
@@ -244,6 +245,11 @@ defmodule Ex9P.Nine do
     @impl true
     def encode(%__MODULE__{ename: ename}) do
       encode_binary(ename)
+    end
+
+    @impl true
+    def message(%__MODULE__{ename: ename}) do
+      ename
     end
   end
 
