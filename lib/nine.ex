@@ -38,59 +38,68 @@ defmodule Ex9P.Nine do
   defmodule QID do
     use TypedStruct
 
-    typedstruct enforce: true do
-      field :type, non_neg_integer()
-      field :version, non_neg_integer()
-      field :path, non_neg_integer()
+    typedstruct do
+      field :type, integer(), default: -1
+      field :version, integer(), default: -1
+      field :path, integer(), default: -1
     end
 
     @spec decode(binary()) :: {t(), binary()}
-    def decode(<<type::8, version::8*4-little, path::8*8-little, rest::binary>>) do
+    def decode(<<
+          type::1*8-little-signed,
+          version::4*8-little-signed,
+          path::8*8-little-signed,
+          rest::binary
+        >>) do
       {%__MODULE__{type: type, version: version, path: path}, rest}
     end
 
     @spec encode(t()) :: iodata()
     def encode(%__MODULE__{type: type, version: version, path: path}) do
-      <<type::8, version::8*4-little, path::8*8-little>>
+      <<type::1*8-signed, version::4*8-little, path::8*8-little>>
     end
   end
 
   defmodule DirEntry do
     use TypedStruct
 
-    typedstruct enforce: true do
-      field :type, integer()
-      field :dev, integer()
-      field :qid, QID.t()
-      field :mode, non_neg_integer()
-      field :atime, DateTime.t()
-      field :mtime, DateTime.t()
-      field :length, non_neg_integer()
-      field :name, String.t()
-      field :uid, String.t()
-      field :gid, String.t()
-      field :muid, String.t()
+    typedstruct do
+      field :type, integer(), default: -1
+      field :dev, integer(), default: -1
+      field :qid, QID.t(), default: %QID{type: -1, version: -1, path: -1}
+      field :mode, integer(), default: -1
+      field :atime, DateTime.t() | nil, default: nil
+      field :mtime, DateTime.t() | nil, default: nil
+      field :length, integer(), default: -1
+      field :name, String.t(), default: ""
+      field :uid, String.t(), default: ""
+      field :gid, String.t(), default: ""
+      field :muid, String.t(), default: ""
     end
 
     @spec decode(binary()) :: {t(), binary()}
-    def decode(<<type::2*8-little, dev::4*8-little, data::binary>>) do
+    def decode(<<size::2*8-little, data::binary>>) do
+      size = size - 2
+      <<^size::2*8-little, data::(^size)*8-binary, rest::binary>> = data
+
+      <<type::2*8-little, dev::4*8-little, data::binary>> = data
       {qid, data} = QID.decode(data)
 
       <<
-        mode::4*8-little,
-        atime::4*8-little,
-        mtime::4*8-little,
-        length::8*8-little,
+        mode::4*8-little-signed,
+        atime::4*8-little-signed,
+        mtime::4*8-little-signed,
+        length::8*8-little-signed,
         data::binary
       >> = data
 
       {name, data} = decode_binary(data)
       {uid, data} = decode_binary(data)
       {gid, data} = decode_binary(data)
-      {muid, data} = decode_binary(data)
+      {muid, ""} = decode_binary(data)
 
-      atime = DateTime.from_unix!(atime, :second)
-      mtime = DateTime.from_unix!(mtime, :second)
+      atime = if atime < 0, do: nil, else: DateTime.from_unix!(atime, :second)
+      mtime = if mtime < 0, do: nil, else: DateTime.from_unix!(mtime, :second)
 
       {%__MODULE__{
          type: type,
@@ -104,7 +113,7 @@ defmodule Ex9P.Nine do
          uid: uid,
          gid: gid,
          muid: muid
-       }, data}
+       }, rest}
     end
 
     @spec encode(t()) :: iodata()
@@ -121,10 +130,10 @@ defmodule Ex9P.Nine do
           gid: gid,
           muid: muid
         }) do
-      atime = DateTime.to_unix(atime)
-      mtime = DateTime.to_unix(mtime)
+      atime = if atime, do: DateTime.to_unix(atime), else: -1
+      mtime = if mtime, do: DateTime.to_unix(mtime), else: -1
 
-      [
+      data = [
         <<type::2*8-little, dev::4*8-little>>,
         QID.encode(qid),
         <<mode::4*8-little, atime::4*8-little, mtime::4*8-little, length::8*8-little>>,
@@ -133,6 +142,8 @@ defmodule Ex9P.Nine do
         encode_binary(gid),
         encode_binary(muid)
       ]
+
+      [<<IO.iodata_length(data)::2*8-little>> | data]
     end
   end
 
