@@ -34,7 +34,7 @@ defmodule Ex9P.Nine.Client.GenServer do
       state = request(state, msg, from)
       {:noreply, state}
     else
-      state = update_in(state.msize, fn msize -> [{msg, from} | msize] end)
+      state = update_in(state.msize, &[{msg, from} | &1])
       {:noreply, state}
     end
   end
@@ -46,14 +46,15 @@ defmodule Ex9P.Nine.Client.GenServer do
   end
 
   @impl true
-  def handle_call(:msize, _from, state) do
-    msize =
-      case state.msize do
-        msize when is_integer(msize) -> msize
-        msize when is_list(msize) -> :waiting
-      end
+  def handle_call(:msize, from, state) do
+    case state.msize do
+      msize when is_integer(msize) ->
+        {:reply, msize, state}
 
-    {:reply, msize, state}
+      msize when is_list(msize) ->
+        state = %{state | msize: [{:msize, from} | msize]}
+        {:noreply, state}
+    end
   end
 
   @impl true
@@ -82,8 +83,13 @@ defmodule Ex9P.Nine.Client.GenServer do
   defp empty_queue(state, queue) when is_list(queue) do
     queue
     |> Enum.reverse()
-    |> Enum.reduce(state, fn {msg, from}, state ->
-      request(state, msg, from)
+    |> Enum.reduce(state, fn
+      {:msize, from}, state ->
+        GenServer.reply(from, state.msize)
+        state
+
+      {msg, from}, state ->
+        request(state, msg, from)
     end)
   end
 

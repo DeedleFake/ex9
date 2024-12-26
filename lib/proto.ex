@@ -23,13 +23,16 @@ defmodule Ex9P.Proto do
 
   @notag (1 <<< 16) - 1
 
+  @header_size 4 + 1 + 2
+  def header_size(), do: @header_size
+
   @spec decode_message(message_data, options) :: {message, rest}
         when message_data: iodata(), options: keyword(), message: struct(), rest: binary()
   def decode_message(data, opts \\ []) do
     %{proto: proto} = Keyword.validate!(opts, proto: Ex9P.Nine) |> Map.new()
 
     <<size::4*8-little, type::8, tag::2*8-little, rest::binary>> = IO.iodata_to_binary(data)
-    datasize = size - 4 - 1 - 2
+    datasize = size - @header_size
     <<data::binary-(^datasize * 8), rest::binary>> = rest
     msg = {tag, proto.decode(type, data)}
     msg = with {@notag, msg} <- msg, do: msg
@@ -46,7 +49,7 @@ defmodule Ex9P.Proto do
     %{proto: proto} = Keyword.validate!(opts, proto: Ex9P.Nine) |> Map.new()
 
     {type, data} = proto.encode(msg)
-    size = 4 + 1 + 2 + IO.iodata_length(data)
+    size = @header_size + IO.iodata_length(data)
     [<<size::4*8-little, type::8, tag::2*8-little>>, data]
   end
 

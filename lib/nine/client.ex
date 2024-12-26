@@ -23,7 +23,7 @@ defmodule Ex9P.Nine.Client do
     GenServer.call(client, {:request, msg})
   end
 
-  @spec msize(t()) :: :waiting | pos_integer()
+  @spec msize(t()) :: pos_integer()
   def msize(client) do
     GenServer.call(client, :msize)
   end
@@ -77,9 +77,10 @@ defmodule Ex9P.Nine.Client do
     end
   end
 
-  @spec read(File.t(), non_neg_integer(), non_neg_integer()) ::
+  @spec read(File.t(), non_neg_integer(), non_neg_integer() | :msize) ::
           {:ok, iodata()} | {:error, Exception.t()}
-  def read(%File{client: client, fid: fid}, offset, count) do
+  def read(%File{client: client, fid: fid}, offset, count \\ :msize) do
+    count = normalize_chunk_size(count, client)
     rsp = request(client, %Nine.Tread{fid: fid, offset: offset, count: count})
 
     with %Nine.Rread{data: data} <- rsp do
@@ -88,4 +89,27 @@ defmodule Ex9P.Nine.Client do
       err when is_exception(err) -> {:error, err}
     end
   end
+
+  @spec stream!(File.t(), pos_integer() | :msize) :: Enumerable.t(iodata())
+  def stream!(%File{client: client} = file, chunk_size \\ :msize) do
+    chunk_size = normalize_chunk_size(chunk_size, client)
+
+    Stream.unfold(0, fn offset ->
+      case read(file, offset, chunk_size) do
+        {:ok, ""} -> nil
+        {:ok, data} -> {data, offset + IO.iodata_length(data)}
+      end
+    end)
+  end
+
+  @spec readdir(iodata()) :: Enumerable.t(Nine.DirEntry.t())
+  def readdir(data) do
+    Stream.unfold(data, fn
+      "" -> nil
+      data -> Nine.DirEntry.decode(data)
+    end)
+  end
+
+  defp normalize_chunk_size(:msize, client), do: msize(client) - dbg(Ex9P.Proto.header_size() + 17)
+  defp normalize_chunk_size(chunk_size, _client), do: chunk_size
 end
