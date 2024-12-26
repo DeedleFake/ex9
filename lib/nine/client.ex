@@ -17,10 +17,7 @@ defmodule Ex9P.Nine.Client do
   @doc false
   defdelegate child_spec(spec), to: __MODULE__.GenServer
 
-  def start_link(opts) do
-    {server_opts, opts} = Keyword.split(opts, [:name])
-    GenServer.start_link(__MODULE__.GenServer, opts, server_opts)
-  end
+  defdelegate start_link(opts), to: __MODULE__.GenServer
 
   defp request(client, msg) do
     GenServer.call(client, {:request, msg})

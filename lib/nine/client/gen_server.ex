@@ -6,6 +6,11 @@ defmodule Ex9P.Nine.Client.GenServer do
 
   @version "9P2000"
 
+  def start_link(opts) do
+    {server_opts, opts} = Keyword.split(opts, [:name])
+    GenServer.start_link(__MODULE__, opts, server_opts)
+  end
+
   @impl true
   def init(opts) do
     opts = Keyword.validate!(opts, [:address, port: 0, connect_opts: [], msize: 8192])
