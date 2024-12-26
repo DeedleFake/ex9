@@ -633,8 +633,41 @@ defmodule Ex9P.Nine do
     end
   end
 
-  # Twstat, 126
-  # Rwstat, 127
+  defmessage Twstat, 126 do
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :fid, Ex9P.Nine.fid()
+      field :stat, DirEntry.t()
+    end
+
+    @impl true
+    def decode(<<fid::4*8-little, data::binary>>) do
+      {stat, ""} = DirEntry.decode(data)
+      %__MODULE__{fid: fid, stat: stat}
+    end
+
+    @impl true
+    def encode(%__MODULE__{fid: fid, stat: stat}) do
+      [<<fid::4*8-little>>, DirEntry.encode(stat)]
+    end
+  end
+
+  defmessage Rwstat, 127 do
+    defstruct []
+    @type t() :: %__MODULE__{}
+
+    @impl true
+    def decode("") do
+      %__MODULE__{}
+    end
+
+    @impl true
+    def encode(%__MODULE__{}) do
+      ""
+    end
+  end
+
   # Topenfd, 98
   # Ropenfd, 99
 end
