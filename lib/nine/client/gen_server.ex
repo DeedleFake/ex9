@@ -41,24 +41,6 @@ defmodule Ex9P.Nine.Client.GenServer do
   end
 
   @impl true
-  def handle_info({Ex9P, conn, %Nine.Rversion{msize: msize}}, %{conn: conn, msize: queue} = state) do
-    state = %{state | msize: msize}
-
-    state =
-      if is_list(queue) do
-        queue
-        |> Enum.reverse()
-        |> Enum.reduce(state, fn {msg, from}, state ->
-          request(state, msg, from)
-        end)
-      else
-        state
-      end
-
-    {:noreply, state}
-  end
-
-  @impl true
   def handle_info({Ex9P, conn, {tag, msg}}, %{conn: conn} = state) do
     {from, state} = pop_in(state.tags[tag])
     GenServer.reply(from, msg)
@@ -67,11 +49,9 @@ defmodule Ex9P.Nine.Client.GenServer do
   end
 
   @impl true
-  def handle_info({Ex9P, conn, msg}, %{conn: conn} = state) do
-    from = state.tags[:notag]
-    GenServer.reply(from, msg)
-
-    state = %{state | tags: %{}}
+  def handle_info({Ex9P, conn, %Nine.Rversion{msize: msize}}, %{conn: conn} = state) do
+    state = empty_queue(state)
+    state = %{state | msize: msize, tags: %{}}
     {:noreply, state}
   end
 
@@ -80,6 +60,18 @@ defmodule Ex9P.Nine.Client.GenServer do
     state = put_in(state.tags[tag], from)
 
     :ok = Conn.send(state.conn, {tag, msg})
+    state
+  end
+
+  defp empty_queue(%{msize: queue} = state) when is_list(queue) do
+    queue
+    |> Enum.reverse()
+    |> Enum.reduce(state, fn {msg, from}, state ->
+      request(state, msg, from)
+    end)
+  end
+
+  defp empty_queue(%{msize: queue} = state) when is_integer(queue) do
     state
   end
 end
