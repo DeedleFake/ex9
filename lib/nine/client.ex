@@ -77,9 +77,20 @@ defmodule Ex9P.Nine.Client do
     end
   end
 
+  @spec clunk(File.t()) :: :ok | {:error, Exception.t()}
+  def clunk(%File{client: client, fid: fid}) do
+    rsp = request(client, %Nine.Tclunk{fid: fid})
+
+    with %Nine.Rclunk{} <- rsp do
+      :ok
+    else
+      err when is_exception(err) -> {:error, err}
+    end
+  end
+
   @spec read(File.t(), non_neg_integer(), non_neg_integer() | :msize) ::
           {:ok, iodata()} | {:error, Exception.t()}
-  def read(%File{client: client, fid: fid}, offset, count \\ :msize) do
+  def read(%File{client: client, fid: fid}, offset, count \\ :msize) when is_integer(offset) do
     count = normalize_chunk_size(count, client)
     rsp = request(client, %Nine.Tread{fid: fid, offset: offset, count: count})
 
@@ -90,17 +101,29 @@ defmodule Ex9P.Nine.Client do
     end
   end
 
+  @spec write(File.t(), non_neg_integer(), iodata()) ::
+          {:ok, count} | {:error | Exception.t()}
+        when count: non_neg_integer()
+  def write(%File{client: client, fid: fid}, offset, data) when is_integer(offset) do
+    rsp = request(client, %Nine.Twrite{fid: fid, offset: offset, data: data})
+
+    with %Nine.Rwrite{count: count} <- rsp do
+      {:ok, count}
+    else
+      err when is_exception(err) -> {:error, err}
+    end
+  end
+
   @spec stream!(File.t(), keyword()) :: Enumerable.t(iodata())
   def stream!(%File{client: client} = file, opts \\ []) do
     opts = Keyword.validate!(opts, starting_offset: 0, chunk_size: :msize)
     chunk_size = normalize_chunk_size(opts[:chunk_size], client)
 
-    Stream.unfold(opts[:starting_offset], fn offset ->
-      case read(file, offset, chunk_size) do
-        {:ok, ""} -> nil
-        {:ok, data} -> {data, offset + IO.iodata_length(data)}
-      end
-    end)
+    %Nine.Stream{
+      file: file,
+      offset: opts[:starting_offset],
+      count: chunk_size
+    }
   end
 
   @spec readdir(iodata()) :: Enumerable.t(Nine.DirEntry.t())
@@ -114,7 +137,7 @@ defmodule Ex9P.Nine.Client do
   end
 
   defp normalize_chunk_size(:msize, client) do
-    msize(client) - dbg(Ex9P.Proto.header_size() + 17)
+    msize(client) - (Ex9P.Proto.header_size() + 17)
   end
 
   defp normalize_chunk_size(chunk_size, _client) do
