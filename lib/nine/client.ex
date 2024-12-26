@@ -3,6 +3,7 @@ defmodule Ex9P.Nine.Client do
 
   alias Ex9P.Conn
   alias Ex9P.Nine
+  alias Ex9P.Nine.DirEntry
 
   @version "9P2000"
 
@@ -27,6 +28,8 @@ defmodule Ex9P.Nine.Client do
     GenServer.call(client, {:request, msg, opts})
   end
 
+  @spec handshake(t(), pos_integer()) ::
+          {:ok, pos_integer()} | {:error, String.t()} | {:error, :unsupported_version}
   def handshake(client, msize) do
     rsp = request(client, %Nine.Tversion{msize: msize, version: @version}, notag: true)
 
@@ -39,6 +42,8 @@ defmodule Ex9P.Nine.Client do
     end
   end
 
+  @spec attach(t(), String.t(), String.t(), File.t() | nil) ::
+          {:ok, File.t()} | {:error, String.t()}
   def attach(client, aname, uname, afile \\ nil) do
     afid = if afile, do: afile.fid, else: :nofid
     fid = GenServer.call(client, :next_fid)
@@ -46,6 +51,30 @@ defmodule Ex9P.Nine.Client do
 
     with %Nine.Rattach{qid: qid} <- rsp do
       {:ok, %File{client: client, fid: fid, qid: qid}}
+    else
+      %Nine.Rerror{ename: ename} -> {:error, ename}
+    end
+  end
+
+  @spec stat(File.t()) :: {:ok, DirEntry.t()} | {:error, String.t()}
+  def stat(%File{client: client, fid: fid}) do
+    rsp = request(client, %Nine.Tstat{fid: fid})
+
+    with %Nine.Rstat{stat: stat} <- rsp do
+      {:ok, stat}
+    else
+      %Nine.Rerror{ename: ename} -> {:error, ename}
+    end
+  end
+
+  @spec walk(File.t(), String.t()) :: {:ok, File.t()} | {:error, String.t()}
+  def walk(%File{client: client, fid: fid}, path) when is_binary(path) do
+    wname = String.split(path, "/", trim: true)
+    newfid = GenServer.call(client, :next_fid)
+    rsp = request(client, %Nine.Twalk{fid: fid, newfid: newfid, wname: wname})
+
+    with %Nine.Rwalk{wqid: wqid} <- rsp do
+      {:ok, %File{client: client, fid: newfid, qid: List.last(wqid)}}
     else
       %Nine.Rerror{ename: ename} -> {:error, ename}
     end
