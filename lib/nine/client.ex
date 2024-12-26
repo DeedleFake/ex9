@@ -104,7 +104,9 @@ defmodule Ex9P.Nine.Client do
 
   @spec readdir(iodata()) :: Enumerable.t(Nine.DirEntry.t())
   def readdir(data) do
-    Stream.unfold(data, fn
+    data
+    |> IO.iodata_to_binary()
+    |> Stream.unfold(fn
       "" -> nil
       data -> Nine.DirEntry.decode(data)
     end)
