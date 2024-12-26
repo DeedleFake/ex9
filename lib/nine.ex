@@ -679,6 +679,44 @@ defmodule Ex9P.Nine do
     end
   end
 
-  # Topenfd, 98
-  # Ropenfd, 99
+  defmessage Topenfd, 98 do
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :fid, Ex9P.Nine.fid()
+      field :mode, non_neg_integer()
+    end
+
+    @impl true
+    def decode(<<fid::4*8-little, mode::1*8-little>>) do
+      %__MODULE__{fid: fid, mode: mode}
+    end
+
+    @impl true
+    def encode(%__MODULE__{fid: fid, mode: mode}) do
+      <<fid::4*8-little, mode::1*8-little>>
+    end
+  end
+
+  defmessage Ropenfd, 99 do
+    use TypedStruct
+
+    typedstruct enforce: true do
+      field :qid, QID.t()
+      field :iounit, non_neg_integer()
+      field :unixfd, non_neg_integer()
+    end
+
+    @impl true
+    def decode(data) do
+      {qid, data} = QID.decode(data)
+      <<iounit::4*8-little, unixfd::4*8-little>> = data
+      %__MODULE__{qid: qid, iounit: iounit, unixfd: unixfd}
+    end
+
+    @impl true
+    def encode(%__MODULE__{qid: qid, iounit: iounit, unixfd: unixfd}) do
+      [QID.encode(qid), <<iounit::4*8-little, unixfd::4*8-little>>]
+    end
+  end
 end
