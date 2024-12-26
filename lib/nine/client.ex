@@ -90,11 +90,12 @@ defmodule Ex9P.Nine.Client do
     end
   end
 
-  @spec stream!(File.t(), pos_integer() | :msize) :: Enumerable.t(iodata())
-  def stream!(%File{client: client} = file, chunk_size \\ :msize) do
-    chunk_size = normalize_chunk_size(chunk_size, client)
+  @spec stream!(File.t(), keyword()) :: Enumerable.t(iodata())
+  def stream!(%File{client: client} = file, opts \\ []) do
+    opts = Keyword.validate!(opts, starting_offset: 0, chunk_size: :msize)
+    chunk_size = normalize_chunk_size(opts[:chunk_size], client)
 
-    Stream.unfold(0, fn offset ->
+    Stream.unfold(opts[:starting_offset], fn offset ->
       case read(file, offset, chunk_size) do
         {:ok, ""} -> nil
         {:ok, data} -> {data, offset + IO.iodata_length(data)}
