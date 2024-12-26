@@ -110,6 +110,11 @@ defmodule Ex9P.Nine.Client do
     end)
   end
 
-  defp normalize_chunk_size(:msize, client), do: msize(client) - dbg(Ex9P.Proto.header_size() + 17)
-  defp normalize_chunk_size(chunk_size, _client), do: chunk_size
+  defp normalize_chunk_size(:msize, client) do
+    msize(client) - dbg(Ex9P.Proto.header_size() + 17)
+  end
+
+  defp normalize_chunk_size(chunk_size, _client) do
+    chunk_size
+  end
 end
