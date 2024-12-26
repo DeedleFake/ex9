@@ -34,6 +34,7 @@ defmodule Ex9P.Nine do
   import __MODULE__.DSL
 
   @opaque fid() :: non_neg_integer()
+  @type mode() :: integer()
 
   defmodule QID do
     use TypedStruct
@@ -67,7 +68,7 @@ defmodule Ex9P.Nine do
       field :type, integer(), default: -1
       field :dev, integer(), default: -1
       field :qid, QID.t(), default: %QID{type: -1, version: -1, path: -1}
-      field :mode, integer(), default: -1
+      field :mode, Ex9P.Nine.mode(), default: -1
       field :atime, DateTime.t() | nil, default: nil
       field :mtime, DateTime.t() | nil, default: nil
       field :length, integer(), default: -1
@@ -79,8 +80,7 @@ defmodule Ex9P.Nine do
 
     @spec decode(binary()) :: {t(), binary()}
     def decode(<<size::2*8-little, data::binary>>) do
-      size = size - 2
-      <<^size::2*8-little, data::(^size)*8-binary, rest::binary>> = data
+      <<data::(^size)*8-binary, rest::binary>> = data
 
       <<type::2*8-little, dev::4*8-little, data::binary>> = data
       {qid, data} = QID.decode(data)
@@ -133,7 +133,7 @@ defmodule Ex9P.Nine do
       atime = if atime, do: DateTime.to_unix(atime), else: -1
       mtime = if mtime, do: DateTime.to_unix(mtime), else: -1
 
-      data = [
+      [
         <<type::2*8-little, dev::4*8-little>>,
         QID.encode(qid),
         <<mode::4*8-little, atime::4*8-little, mtime::4*8-little, length::8*8-little>>,
@@ -142,8 +142,6 @@ defmodule Ex9P.Nine do
         encode_binary(gid),
         encode_binary(muid)
       ]
-
-      [<<IO.iodata_length(data)::2*8-little>> | data]
     end
   end
 
@@ -383,7 +381,7 @@ defmodule Ex9P.Nine do
 
     typedstruct do
       field :fid, non_neg_integer()
-      field :mode, pos_integer()
+      field :mode, Ex9P.Nine.mode()
     end
 
     @impl true
@@ -425,7 +423,7 @@ defmodule Ex9P.Nine do
       field :fid, Ex9P.Nine.fid()
       field :name, String.t()
       field :perm, pos_integer()
-      field :mode, pos_integer()
+      field :mode, Ex9P.Nine.mode()
     end
 
     @impl true
@@ -639,14 +637,16 @@ defmodule Ex9P.Nine do
     end
 
     @impl true
-    def decode(data) do
+    def decode(<<size::2*8-little, data::binary>>) do
+      <<data::(^size)*8-binary, "">> = data
       {stat, ""} = DirEntry.decode(data)
       %__MODULE__{stat: stat}
     end
 
     @impl true
     def encode(%__MODULE__{stat: stat}) do
-      DirEntry.encode(stat)
+      data = DirEntry.encode(stat)
+      [IO.iodata_length(data), data]
     end
   end
 
@@ -659,14 +659,16 @@ defmodule Ex9P.Nine do
     end
 
     @impl true
-    def decode(<<fid::4*8-little, data::binary>>) do
+    def decode(<<fid::4*8-little, size::2*8-little, data::binary>>) do
+      <<data::(^size)*8-binary, "">> = data
       {stat, ""} = DirEntry.decode(data)
       %__MODULE__{fid: fid, stat: stat}
     end
 
     @impl true
     def encode(%__MODULE__{fid: fid, stat: stat}) do
-      [<<fid::4*8-little>>, DirEntry.encode(stat)]
+      data = DirEntry.encode(stat)
+      [<<fid::4*8-little, IO.iodata_length(data)::2*8-little>>, data]
     end
   end
 
@@ -690,7 +692,7 @@ defmodule Ex9P.Nine do
 
     typedstruct enforce: true do
       field :fid, Ex9P.Nine.fid()
-      field :mode, non_neg_integer()
+      field :mode, Ex9P.Nine.mode()
     end
 
     @impl true

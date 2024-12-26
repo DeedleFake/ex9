@@ -26,6 +26,11 @@ defmodule Ex9P.Nine.Client do
     GenServer.call(client, {:request, msg})
   end
 
+  @spec msize(t()) :: :waiting | pos_integer()
+  def msize(client) do
+    GenServer.call(client, :msize)
+  end
+
   @spec attach(t(), String.t(), String.t(), File.t() | nil) ::
           {:ok, File.t()} | {:error, Exception.t()}
   def attach(client, aname, uname, afile \\ nil) do
@@ -59,6 +64,29 @@ defmodule Ex9P.Nine.Client do
 
     with %Nine.Rwalk{wqid: wqid} <- rsp do
       {:ok, %File{client: client, fid: newfid, qid: List.last(wqid)}}
+    else
+      err when is_exception(err) -> {:error, err}
+    end
+  end
+
+  @spec open(File.t(), Nine.mode()) :: :ok | {:error, Exception.t()}
+  def open(%File{client: client, fid: fid}, mode) do
+    rsp = request(client, %Nine.Topen{fid: fid, mode: mode})
+
+    with %Nine.Ropen{} <- rsp do
+      :ok
+    else
+      err when is_exception(err) -> {:error, err}
+    end
+  end
+
+  @spec read(File.t(), non_neg_integer(), non_neg_integer()) ::
+          {:ok, iodata()} | {:error, Exception.t()}
+  def read(%File{client: client, fid: fid}, offset, count) do
+    rsp = request(client, %Nine.Tread{fid: fid, offset: offset, count: count})
+
+    with %Nine.Rread{data: data} <- rsp do
+      {:ok, data}
     else
       err when is_exception(err) -> {:error, err}
     end

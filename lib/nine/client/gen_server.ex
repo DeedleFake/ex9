@@ -41,6 +41,17 @@ defmodule Ex9P.Nine.Client.GenServer do
   end
 
   @impl true
+  def handle_call(:msize, _from, state) do
+    msize =
+      case state.msize do
+        msize when is_integer(msize) -> msize
+        msize when is_list(msize) -> :waiting
+      end
+
+    {:reply, msize, state}
+  end
+
+  @impl true
   def handle_info({Ex9P, conn, {tag, msg}}, %{conn: conn} = state) do
     {from, state} = pop_in(state.tags[tag])
     GenServer.reply(from, msg)
