@@ -65,9 +65,9 @@ defmodule Ex9P.Nine.Client.GenServer do
   end
 
   @impl true
-  def handle_info({Ex9P, conn, %Nine.Rversion{msize: msize}}, %{conn: conn} = state) do
-    state = empty_queue(state)
+  def handle_info({Ex9P, conn, %Nine.Rversion{msize: msize}}, %{conn: conn, msize: queue} = state) do
     state = %{state | msize: msize, tags: %{}}
+    state = empty_queue(state, queue)
     {:noreply, state}
   end
 
@@ -79,7 +79,7 @@ defmodule Ex9P.Nine.Client.GenServer do
     state
   end
 
-  defp empty_queue(%{msize: queue} = state) when is_list(queue) do
+  defp empty_queue(state, queue) when is_list(queue) do
     queue
     |> Enum.reverse()
     |> Enum.reduce(state, fn {msg, from}, state ->
@@ -87,7 +87,7 @@ defmodule Ex9P.Nine.Client.GenServer do
     end)
   end
 
-  defp empty_queue(%{msize: queue} = state) when is_integer(queue) do
+  defp empty_queue(state, queue) when is_integer(queue) do
     state
   end
 end
