@@ -45,9 +45,15 @@ defmodule Ex9P.Nine.Client.GenServer do
     state = %{state | msize: msize}
 
     state =
-      Enum.reduce(queue, state, fn {msg, from}, state ->
-        request(state, msg, from)
-      end)
+      if is_list(queue) do
+        queue
+        |> Enum.reverse()
+        |> Enum.reduce(state, fn {msg, from}, state ->
+          request(state, msg, from)
+        end)
+      else
+        state
+      end
 
     {:noreply, state}
   end
