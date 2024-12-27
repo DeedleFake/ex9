@@ -114,8 +114,8 @@ defmodule Ex9P.Nine.Client do
     end
   end
 
-  @spec stream!(File.t(), keyword()) :: Enumerable.t(iodata())
-  def stream!(%File{client: client} = file, opts \\ []) do
+  @spec stream(File.t(), keyword()) :: Enumerable.t(iodata())
+  def stream(%File{client: client} = file, opts \\ []) do
     opts = Keyword.validate!(opts, starting_offset: 0, chunk_size: :msize)
     chunk_size = normalize_chunk_size(opts[:chunk_size], client)
 
